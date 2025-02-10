@@ -1,0 +1,24 @@
+{
+    "name": "sovendus-gtm-template",
+    "version": "1.0.0",
+    "description": "Sovendus Google Tag Manager Template",
+    "scripts": {
+        "lint": "eslint . --ext .ts",
+        "build": "tsc"
+    },
+    "author": "Marcus Brandstaetter - Sovendus GmbH",
+    "license": "Apache-2.0",
+    "devDependencies": {
+        "eslint": "^8.57.0",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-import": "^2.30.0",
+        "eslint-plugin-prettier": "^5.2.1",
+        "eslint-plugin-simple-import-sort": "^12.1.1",
+        "eslint-plugin-unused-imports": "^4.1.4",
+        "prettier": "^3.3.3",
+        "prettier-eslint": "^16.3.0",
+        "sovendus-integration-types": "^1.0.13",
+        "typescript": "^5.7.3",
+        "typescript-eslint": "^8.10.0"
+    }
+}
