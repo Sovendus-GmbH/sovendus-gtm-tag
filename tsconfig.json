@@ -28,7 +28,7 @@
     "noUnusedLocals": true, // Raise errors on unused locals
     "noImplicitOverride": true, // Ensure that the "override" modifier is used correctly in classes
     "noUncheckedIndexedAccess": true, // Add undefined to any type when accessing array elements with an index
-    "useUnknownInCatchVariables": true, // Make catch clause variables default to "unknown" instead of "any"
+    // "useUnknownInCatchVariables": true, // Make catch clause variables default to "unknown" instead of "any"
     "exactOptionalPropertyTypes": true, // Interpret optional property types strictly
     "forceConsistentCasingInFileNames": true, // Ensure consistent casing in import paths
     "noPropertyAccessFromIndexSignature": true, // Prevent accessing properties using string indices unless explicitly declared in the type

@@ -1,13 +1,19 @@
+// only import types - no external code
 import type {
   ExplicitAnyType,
   InterfaceDataElementKeyType,
+  SovConsumerType,
+  SovConversionsType,
   SovendusPageConfig,
   SovendusThankYouPageConfig,
+  SovendusThankYouPageStatus,
   SovPageStatus,
   Versions,
 } from "sovendus-integration-types";
 
 import type { CookieSetOptions, CookieStorageObject } from "./types";
+
+const PLUGIN_VERSION = "gtm-new-1.0.0";
 
 declare const data: {
   // IMPORTANT: Sync this with the tags input settings keys
@@ -40,6 +46,7 @@ declare const data: {
   consumerDateOfBirth: ExplicitAnyType;
   consumerStreet: ExplicitAnyType;
   consumerStreetNumber: ExplicitAnyType;
+  consumerFullStreet: ExplicitAnyType;
   consumerZipcode: ExplicitAnyType;
   consumerCity: ExplicitAnyType;
   consumerCountry: ExplicitAnyType;
@@ -52,7 +59,6 @@ declare const data: {
 declare const require: <FNType>(name: string) => FNType;
 
 // Initialize GoogleTagManager APIs
-const callInWindow = require("callInWindow");
 const setInWindow = require<
   (variableName: string, value: ExplicitAnyType) => void
 >("setInWindow");
@@ -64,13 +70,13 @@ const injectScript = require<
     cacheVersionKey: string,
   ) => void
 >("injectScript");
-const encode = require("encodeUriComponent");
-const makeString = require("makeString");
 const log = require<(...messages: ExplicitAnyType[]) => void>("logToConsole");
 const queryPermission = require<
   (permissionName: string, ...functionParams: ExplicitAnyType[]) => boolean
 >("queryPermission");
-const createQueue = require("createQueue");
+const createQueue = require<
+  (valueKey: string) => (value: ExplicitAnyType) => void
+>("createQueue");
 const getCookieValues = require("getCookieValues");
 const setCookie = require<
   (cookieKey: string, value: ExplicitAnyType, options: CookieSetOptions) => void
@@ -177,7 +183,7 @@ function getLandingPageConfig(
       checkoutProducts: data.checkoutProducts || false,
       version: "2" as Versions.TWO,
     },
-    integrationType: "gtm-page-1.0.0",
+    integrationType: PLUGIN_VERSION,
   };
   setInWindow("sovPageConfig", sovPageConfig);
   sovPageStatus.sovPageConfigFound = true;
@@ -233,8 +239,8 @@ function voucherNetworkPage(
   urlSearchParams: CookieStorageObject,
 ): void {
   if (
-    config.settings.voucherNetwork.trafficMediumNumber &&
-    config.settings.voucherNetwork.trafficSourceNumber
+    config.settings.voucherNetwork.simple?.trafficMediumNumber &&
+    config.settings.voucherNetwork.simple?.trafficSourceNumber
   ) {
     const sovCouponCode = urlSearchParams[cookieKeys.sovCouponCode];
     if (sovCouponCode) {
@@ -300,86 +306,9 @@ function thankYouPage(): void {
   log("Sovendus Tag [Thankyou]  - start");
 
   const thankYouConfig = getThankyouPageConfig();
-  setThankyouPageInitialStatus;
+  const sovThankyouStatus = setThankyouPageInitialStatus();
 
-  if (data.voucherNetwork || data.optimize) {
-    // order data
-    thankYouConfig.orderId = makeString(data.orderId);
-    thankYouConfig.orderValue = makeString(data.orderValue);
-    thankYouConfig.orderCurrency = makeString(data.orderCurrency);
-    thankYouConfig.usedCouponCode = makeString(data.usedCouponCode);
-  }
-  if (data.voucherNetwork || data.checkoutBenefits) {
-    // customer data
-    thankYouConfig.consumerSalutation = makeString(data.consumerSalutation);
-    thankYouConfig.consumerFirstName = makeString(data.consumerFirstName);
-    thankYouConfig.consumerLastName = makeString(data.consumerLastName);
-    thankYouConfig.consumerEmail = makeString(data.consumerEmail);
-    thankYouConfig.consumerEmailHash = makeString(data.consumerEmailHash);
-    thankYouConfig.consumerPhone = makeString(data.consumerPhone);
-    thankYouConfig.consumerYearOfBirth = makeString(data.consumerYearOfBirth);
-    thankYouConfig.consumerDateOfBirth = makeString(data.consumerDateOfBirth);
-    if (data.consumerFullStreet) {
-      const consumerStreetArray = splitStreetAndNumber(
-        makeString(data.consumerFullStreet),
-      );
-      thankYouConfig.consumerStreet = consumerStreetArray[0];
-      thankYouConfig.consumerStreetNumber = consumerStreetArray[1];
-    } else {
-      thankYouConfig.consumerStreet = makeString(data.consumerStreet);
-      thankYouConfig.consumerStreetNumber = makeString(
-        data.consumerStreetNumber,
-      );
-    }
-    thankYouConfig.consumerZipcode = makeString(data.consumerZipcode);
-    thankYouConfig.consumerCity = makeString(data.consumerCity);
-    thankYouConfig.consumerCountry = makeString(data.consumerCountry);
-  }
-
-  if (data.voucherNetwork || data.checkoutBenefits) {
-    const trafficSourceNumberGTM = encode(makeString(data.trafficSourceNumber));
-    const trafficMediumNumberGTM = encode(makeString(data.trafficMediumNumber));
-    const iframeContainerIdGTM = makeString(data.iframeContainerId);
-    const sovendusUrl =
-      "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
-
-    const sovIframes = createQueue("sovIframes");
-
-    //Allocate Main- & Orderdata
-    sovIframes({
-      trafficSourceNumber: trafficSourceNumberGTM,
-      trafficMediumNumber: trafficMediumNumberGTM,
-      orderId: thankYouConfig.orderId,
-      orderValue: thankYouConfig.orderValue,
-      orderCurrency: thankYouConfig.orderCurrency,
-      usedCouponCode: thankYouConfig.usedCouponCode,
-      iframeContainerId: iframeContainerIdGTM,
-      integrationType: "gtm-thankyou-1.0.0",
-    });
-
-    //Allocate Consumer Data
-    setInWindow("sovConsumer", {
-      consumerSalutation: thankYouConfig.consumerSalutation,
-      consumerFirstName: thankYouConfig.consumerFirstName,
-      consumerLastName: thankYouConfig.consumerLastName,
-      consumerEmail: thankYouConfig.consumerEmail,
-      consumerEmailHash: thankYouConfig.consumerEmailHash,
-      consumerStreet: thankYouConfig.consumerStreet,
-      consumerStreetNumber: thankYouConfig.consumerStreetNumber,
-      consumerCountry: thankYouConfig.consumerCountry,
-      consumerZipcode: thankYouConfig.consumerZipcode,
-      consumerCity: thankYouConfig.consumerCity,
-      consumerPhone: thankYouConfig.consumerPhone,
-      consumerYearOfBirth: thankYouConfig.consumerYearOfBirth,
-    });
-    //Inject flexibleIframe Script in page.
-    injectScript(
-      sovendusUrl,
-      data.gtmOnSuccess,
-      data.gtmOnFailure,
-      "use-cache",
-    );
-  }
+  voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus);
 
   if (data.optimize && data.optimizeId) {
     const sovendusUrl =
@@ -431,13 +360,70 @@ function thankYouPage(): void {
     sovThankyouStatus.executedCheckoutProducts = true;
   }
 
-  sovThankyouStatusAdder(sovThankyouStatus);
+  setInWindow("sovThankyouStatus", sovThankyouStatus);
+  log("Sovendus Tag [Thankyou] - end");
+}
+
+function voucherNetworkThankYouPage(
+  thankYouConfig: SovendusThankYouPageConfig,
+  sovThankyouStatus: SovendusThankYouPageStatus,
+): void {
+  if (data.voucherNetwork || data.checkoutBenefits) {
+    const trafficMediumNumber =
+      thankYouConfig.settings.voucherNetwork.simple?.trafficMediumNumber;
+    const trafficSourceNumber =
+      thankYouConfig.settings.voucherNetwork.simple?.trafficSourceNumber;
+    if (!trafficMediumNumber || !trafficSourceNumber) {
+      log(
+        "Sovendus Tag [Thankyou] - trafficMediumNumber or trafficSourceNumber is missing",
+      );
+      return;
+    }
+    const sovendusUrl =
+      "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
+
+    const sovIframes = createQueue("sovIframes");
+
+    //Allocate Main- & Orderdata
+    sovIframes({
+      trafficSourceNumber,
+      trafficMediumNumber,
+      orderId: thankYouConfig.orderId,
+      orderValue: thankYouConfig.orderValue,
+      orderCurrency: thankYouConfig.orderCurrency,
+      usedCouponCode: thankYouConfig.usedCouponCode,
+      iframeContainerId:
+        thankYouConfig.settings.voucherNetwork.iframeContainerId!,
+      integrationType: PLUGIN_VERSION,
+    } satisfies SovConversionsType);
+
+    //Allocate Consumer Data
+    setInWindow("sovConsumer", {
+      consumerSalutation: thankYouConfig.consumerSalutation,
+      consumerFirstName: thankYouConfig.consumerFirstName,
+      consumerLastName: thankYouConfig.consumerLastName,
+      consumerEmail: thankYouConfig.consumerEmail,
+      consumerEmailHash: thankYouConfig.consumerEmailHash,
+      consumerStreet: thankYouConfig.consumerStreet,
+      consumerStreetNumber: thankYouConfig.consumerStreetNumber,
+      consumerCountry: thankYouConfig.consumerCountry,
+      consumerZipcode: thankYouConfig.consumerZipcode,
+      consumerCity: thankYouConfig.consumerCity,
+      consumerPhone: thankYouConfig.consumerPhone,
+      consumerYearOfBirth: thankYouConfig.consumerYearOfBirth,
+    } satisfies SovConsumerType);
+
+    //Inject flexibleIframe Script in page.
+    injectScript(sovendusUrl, () => {}, data.gtmOnFailure, "use-cache");
+    sovThankyouStatus.loadedVoucherNetwork = true;
+  }
 }
 
 function getThankyouPageConfig(): SovendusThankYouPageConfig {
-  const streetInfo = data.consumerFullStreet
-    ? splitStreetAndNumber(data.consumerFullStreet)
-    : undefined;
+  const streetInfo =
+    typeof data.consumerFullStreet === "string"
+      ? splitStreetAndNumber(data.consumerFullStreet)
+      : undefined;
   const sovThankYouConfig: SovendusThankYouPageConfig = {
     settings: {
       voucherNetwork: {
@@ -454,7 +440,6 @@ function getThankyouPageConfig(): SovendusThankYouPageConfig {
     orderId: data.orderId,
     orderValue: data.orderValue,
     orderCurrency: data.orderCurrency,
-    usedCouponCodes: undefined,
     usedCouponCode: data.usedCouponCode,
     iframeContainerId: data.iframeContainerId,
     integrationType: data.integrationType,
@@ -470,15 +455,17 @@ function getThankyouPageConfig(): SovendusThankYouPageConfig {
     consumerZipcode: data.consumerZipcode,
     consumerCity: data.consumerCity,
     consumerCountry: data.consumerCountry,
-    consumerLanguage: data.consumerLanguage,
     consumerPhone: data.consumerPhone,
+    usedCouponCodes: undefined,
+    sessionId: undefined,
+    timestamp: undefined,
   };
   setInWindow("sovThankYouConfig", sovThankYouConfig);
   return sovThankYouConfig;
 }
 
-function setThankyouPageInitialStatus() {
-  const sovThankyouStatus = {
+function setThankyouPageInitialStatus(): SovendusThankYouPageStatus {
+  const sovThankyouStatus: SovendusThankYouPageStatus = {
     loadedOptimize: false,
     loadedVoucherNetwork: false,
     executedCheckoutProducts: false,
