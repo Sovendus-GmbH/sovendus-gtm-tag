@@ -120,7 +120,7 @@ if (data.voucherNetwork || data.checkoutBenefits) {
   if (data.optimize && data.optimizeId) {
     const sovendusUrl =
       `https://www.sovopt.com/${data.optimizeId}/conversion/?ordervalue=${thankYouConfig.ordervalue}&ordernumber=${thankYouConfig.ordernumber}&vouchercode=${thankYouConfig.vouchercode}&email=${thankYouConfig.email}&subtext=XXX`
-    injectScript(sovendusUrl, data.gtmOnSuccess, data.gtmOnFailure, sovendusUrl);
+    injectScript(sovendusUrl, data.gtmOnSuccess, data.gtmOnFailure, "use-chache");
     
   }
   

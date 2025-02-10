@@ -1,17 +1,6 @@
-homepage: "https://www.sovendus.de"
-documentation: "https://github.com/Sovendus-GmbH/Sovendus-GTM-v2"
+homepage: "www.sovendus.com"
+documentation: "https://github.com/Sovendus-GmbH/sovendus-thankyou-page-gtm-tag
 versions:
   # Latest version
-  - sha: 0a4634e76626d147cec2bae90ae74aa7fe019595
-    changeNotes: Fix documentation url
-  # older versions
-  - sha: 3f57395aea0c63aa569480315f145b415c2eda15
-    changeNotes: Add version parameter
-  - sha: 498db0dda4465e21320375e21d77cbb784a0175c
-    changeNotes: change Sovendus product names to new names
-  - sha: 4a45c65b0453f4b4af2afec99b659f5970788a4c
-    changeNotes: fix hashEmail, to add support for pre hashed email instead of transmitting it plain text
-  - sha: 9e4ca2bb4374e6d5b7952b39ad6502de1a02002e
-    changeNotes: Add hashEmail, to add support for pre hashed email instead of transmitting it plain text
-  - sha: af991d3913a86e3677a39d86343c40c03933bafe
-    changeNotes: Initial release.
+  - sha: todo
+    changeNotes: add initial combined version based on all other sovendus tags
