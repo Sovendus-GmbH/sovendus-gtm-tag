@@ -414,7 +414,14 @@ function voucherNetworkThankYouPage(
     } satisfies SovConsumerType);
 
     //Inject flexibleIframe Script in page.
-    injectScript(sovendusUrl, () => {}, data.gtmOnFailure, "use-cache");
+    injectScript(
+      sovendusUrl,
+      () => {
+        /* empty */
+      },
+      data.gtmOnFailure,
+      "use-cache",
+    );
     sovThankyouStatus.loadedVoucherNetwork = true;
   }
 }

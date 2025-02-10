@@ -3,8 +3,8 @@
     "version": "1.0.0",
     "description": "Sovendus Google Tag Manager Template",
     "scripts": {
-        "lint": "eslint . --ext .ts",
-        "build": "tsc"
+        "lint": "eslint . --ext .ts --fix",
+        "build": "yarn lint && tsc && rm dist/types.ts"
     },
     "author": "Marcus Brandstaetter - Sovendus GmbH",
     "license": "Apache-2.0",

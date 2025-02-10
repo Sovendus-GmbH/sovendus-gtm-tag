@@ -1,9 +1,7 @@
+const PLUGIN_VERSION = "gtm-new-1.0.0";
 // Initialize GoogleTagManager APIs
-const callInWindow = require("callInWindow");
 const setInWindow = require("setInWindow");
 const injectScript = require("injectScript");
-const encode = require("encodeUriComponent");
-const makeString = require("makeString");
 const log = require("logToConsole");
 const queryPermission = require("queryPermission");
 const createQueue = require("createQueue");
@@ -12,39 +10,78 @@ const setCookie = require("setCookie");
 const sendPixel = require("sendPixel");
 const getUrl = require("getUrl");
 const parseUrl = require("parseUrl");
+/**
+ * Main function
+ */
 function main() {
-    if (data.pageType === "page") {
-        log("Sovendus Tag [Page]  - start");
-        landingPage();
+    if (checkPermissions()) {
+        if (data.pageType === "page") {
+            landingPage();
+        }
+        else {
+            thankYouPage();
+        }
+        log("Sovendus Tag - end");
+        data.gtmOnSuccess();
     }
     else {
-        log("Sovendus Tag [Thankyou]  - start");
-        thankYouPage();
+        log("No permission to get/set sovReqCookie or read url path");
+        data.gtmOnFailure();
     }
-    log("Sovendus Tag - end");
-    data.gtmOnSuccess();
+}
+const cookieKeys = {
+    sovCouponCode: "sovCouponCode",
+    sovReqToken: "sovReqToken",
+    sovReqProductId: "sovReqProductId",
+};
+/**
+ * Permission check
+ * Make sure all permissions are checked
+ */
+function checkPermissions() {
+    return (queryPermission("set_cookies", cookieKeys.sovReqToken, cookieAddOptions) &&
+        queryPermission("set_cookies", cookieKeys.sovCouponCode, cookieAddOptions) &&
+        queryPermission("set_cookies", cookieKeys.sovReqProductId, cookieAddOptions) &&
+        queryPermission("get_url", "query", cookieKeys.sovReqToken) &&
+        queryPermission("get_url", "query", cookieKeys.sovCouponCode) &&
+        queryPermission("get_url", "query", cookieKeys.sovReqProductId));
 }
 /**
  * landing page related functions
  *
  */
 function landingPage() {
+    log("Sovendus Tag [Page]  - start");
     const sovPageStatus = setLandingPageInitialStatus();
     const config = getLandingPageConfig(sovPageStatus);
+    const urlSearchParams = getUrlObject();
+    optimizePage(config, sovPageStatus);
+    checkoutProductsPage(config, sovPageStatus, urlSearchParams);
+    voucherNetworkPage(config, sovPageStatus, urlSearchParams);
+    setInWindow("sovPageStatus", sovPageStatus);
+    log("Sovendus Page Tag - end");
 }
 function getLandingPageConfig(sovPageStatus) {
     const optimizeId = data.optimizeId;
     const sovPageConfig = {
         settings: {
-            voucherNetworkEnabled: data.voucherNetwork,
+            voucherNetwork: {
+                simple: {
+                    trafficSourceNumber: data.trafficSourceNumber,
+                    trafficMediumNumber: data.trafficMediumNumber,
+                },
+                anyCountryEnabled: !!(data.trafficSourceNumber && data.trafficMediumNumber),
+                iframeContainerId: data.iframeContainerId,
+            },
             optimize: {
                 useGlobalId: true,
                 globalId: optimizeId,
                 globalEnabled: !!data.optimizeId,
             },
-            checkoutProducts: data.checkoutProducts,
+            checkoutProducts: data.checkoutProducts || false,
+            version: "2",
         },
-        integrationType: "gtm-page-1.0.0",
+        integrationType: PLUGIN_VERSION,
     };
     setInWindow("sovPageConfig", sovPageConfig);
     sovPageStatus.sovPageConfigFound = true;
@@ -62,53 +99,49 @@ function setLandingPageInitialStatus() {
     setInWindow("sovPageStatus", sovPageStatus);
     return sovPageStatus;
 }
-const cookieKeys = {
-    sovCouponCode: "sovCouponCode",
-    sovReqToken: "sovReqToken",
-    sovReqProductId: "sovReqProductId",
-};
 const cookieAddOptions = {
     "path": "/",
     "max-age": 60 * 60 * 24 * 31,
     "secure": true,
 };
-const urlObject = getUrlObject();
-if (checkPermissions()) {
-    log("Sovendus Page Tag - checked permissions");
-    if (sovPageConfig.settings.checkoutProducts) {
-        checkoutProducts();
-    }
-    if (sovPageConfig.settings.voucherNetworkEnabled) {
-        voucherNetwork();
+function optimizePage(config, sovPageStatus) {
+    if (config.settings.optimize.globalId &&
+        config.settings.optimize.globalEnabled) {
+        const sovendusUrl = "https://www.sovopt.com/" + config.settings.optimize.globalId;
+        injectScript(sovendusUrl, data.gtmOnSuccess, data.gtmOnFailure, "use-cache");
+        log("Sovendus Tag [Page] - success optimizeId =", config.settings.optimize.globalId);
+        sovPageStatus.loadedOptimize = true;
     }
 }
-else {
-    log("No permission to get/set sovReqCookie or read url path");
-}
-function voucherNetwork() {
-    const sovCouponCode = urlObject[sovCouponCodeCookieName];
-    if (sovCouponCode) {
-        setCookie(sovCouponCodeCookieName, sovCouponCode, cookieAddOptions);
-        log("Sovendus Page Tag - success sovCouponCode =", sovCouponCode);
-        sovPageStatus.loadedVoucherNetworkVoucherCode = true;
-    }
-    sovPageStatus.loadedVoucherNetworkSwitzerland = true;
-    const sovLandingScript = "https://api.sovendus.com/js/landing.js";
-    injectScript(sovLandingScript, data.gtmOnSuccess, data.gtmOnFailure, "use-chache");
-}
-function checkoutProducts() {
-    const sovReqToken = urlObject[sovReqTokenCookieName];
-    const sovReqProductId = urlObject[sovReqProductIdCookieName];
-    if (sovReqToken || sovReqProductId) {
-        if (!sovReqToken || !sovReqProductId) {
-            log("Sovendus Page Tag - sovReqToken or sovReqProductId is missing in url");
-            sovPageStatus.missingSovReqTokenOrProductId = true;
+function voucherNetworkPage(config, sovPageStatus, urlSearchParams) {
+    if (config.settings.voucherNetwork.simple?.trafficMediumNumber &&
+        config.settings.voucherNetwork.simple?.trafficSourceNumber) {
+        const sovCouponCode = urlSearchParams[cookieKeys.sovCouponCode];
+        if (sovCouponCode) {
+            setCookie(cookieKeys.sovCouponCode, sovCouponCode, cookieAddOptions);
+            log("Sovendus Page Tag - success sovCouponCode =", sovCouponCode);
+            sovPageStatus.loadedVoucherNetworkVoucherCode = true;
         }
-        else {
-            setCookie(sovReqTokenCookieName, sovReqToken, cookieAddOptions);
-            setCookie(sovReqProductIdCookieName, sovReqProductId, cookieAddOptions);
-            log("Sovendus Page Tag - success sovReqToken =", sovReqToken, "sovReqProductId =", sovReqProductId);
-            sovPageStatus.executedCheckoutProducts = true;
+        sovPageStatus.loadedVoucherNetworkSwitzerland = true;
+        const sovLandingScript = "https://api.sovendus.com/js/landing.js";
+        injectScript(sovLandingScript, data.gtmOnSuccess, data.gtmOnFailure, "use-chache");
+    }
+}
+function checkoutProductsPage(config, sovPageStatus, urlSearchParams) {
+    if (config.settings.checkoutProducts) {
+        const sovReqToken = urlSearchParams[cookieKeys.sovReqToken];
+        const sovReqProductId = urlSearchParams[cookieKeys.sovReqProductId];
+        if (sovReqToken || sovReqProductId) {
+            if (!sovReqToken || !sovReqProductId) {
+                log("Sovendus Page Tag - sovReqToken or sovReqProductId is missing in url");
+                sovPageStatus.missingSovReqTokenOrProductId = true;
+            }
+            else {
+                setCookie(cookieKeys.sovReqToken, sovReqToken, cookieAddOptions);
+                setCookie(cookieKeys.sovReqProductId, sovReqProductId, cookieAddOptions);
+                log("Sovendus Page Tag - success sovReqToken =", sovReqToken, "sovReqProductId =", sovReqProductId);
+                sovPageStatus.executedCheckoutProducts = true;
+            }
         }
     }
 }
@@ -116,89 +149,15 @@ function getUrlObject() {
     const urlObject = parseUrl(getUrl());
     return urlObject.searchParams;
 }
-function checkPermissions() {
-    return (queryPermission("set_cookies", sovReqTokenCookieName, cookieAddOptions) &&
-        queryPermission("set_cookies", sovCouponCodeCookieName, cookieAddOptions) &&
-        queryPermission("set_cookies", sovReqProductIdCookieName, cookieAddOptions) &&
-        queryPermission("get_url", "query", sovReqTokenCookieName) &&
-        queryPermission("get_url", "query", sovCouponCodeCookieName) &&
-        queryPermission("get_url", "query", sovReqProductIdCookieName));
-}
-setInWindow("sovPageStatus", sovPageStatus);
-log("Sovendus Page Tag - end");
-data.gtmOnSuccess();
 /**
  * Thank you page related functions
  *
  */
 function thankYouPage() {
-    const config = getThankyouPageConfig();
-    setThankyouPageInitialStatus;
-    if (data.voucherNetwork || data.optimize) {
-        // order data
-        thankYouConfig.orderId = makeString(data.orderId);
-        thankYouConfig.orderValue = makeString(data.orderValue);
-        thankYouConfig.orderCurrency = makeString(data.orderCurrency);
-        thankYouConfig.usedCouponCode = makeString(data.usedCouponCode);
-    }
-    if (data.voucherNetwork || data.checkoutBenefits) {
-        // customer data
-        thankYouConfig.consumerSalutation = makeString(data.consumerSalutation);
-        thankYouConfig.consumerFirstName = makeString(data.consumerFirstName);
-        thankYouConfig.consumerLastName = makeString(data.consumerLastName);
-        thankYouConfig.consumerEmail = makeString(data.consumerEmail);
-        thankYouConfig.consumerEmailHash = makeString(data.consumerEmailHash);
-        thankYouConfig.consumerPhone = makeString(data.consumerPhone);
-        thankYouConfig.consumerYearOfBirth = makeString(data.consumerYearOfBirth);
-        thankYouConfig.consumerDateOfBirth = makeString(data.consumerDateOfBirth);
-        if (data.consumerFullStreet) {
-            const consumerStreetArray = splitStreetAndNumber(makeString(data.consumerFullStreet));
-            thankYouConfig.consumerStreet = consumerStreetArray[0];
-            thankYouConfig.consumerStreetNumber = consumerStreetArray[1];
-        }
-        else {
-            thankYouConfig.consumerStreet = makeString(data.consumerStreet);
-            thankYouConfig.consumerStreetNumber = makeString(data.consumerStreetNumber);
-        }
-        thankYouConfig.consumerZipcode = makeString(data.consumerZipcode);
-        thankYouConfig.consumerCity = makeString(data.consumerCity);
-        thankYouConfig.consumerCountry = makeString(data.consumerCountry);
-    }
-    if (data.voucherNetwork || data.checkoutBenefits) {
-        const trafficSourceNumberGTM = encode(makeString(data.trafficSourceNumber));
-        const trafficMediumNumberGTM = encode(makeString(data.trafficMediumNumber));
-        const iframeContainerIdGTM = makeString(data.iframeContainerId);
-        const sovendusUrl = "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
-        const sovIframes = createQueue("sovIframes");
-        //Allocate Main- & Orderdata
-        sovIframes({
-            trafficSourceNumber: trafficSourceNumberGTM,
-            trafficMediumNumber: trafficMediumNumberGTM,
-            orderId: thankYouConfig.orderId,
-            orderValue: thankYouConfig.orderValue,
-            orderCurrency: thankYouConfig.orderCurrency,
-            usedCouponCode: thankYouConfig.usedCouponCode,
-            iframeContainerId: iframeContainerIdGTM,
-            integrationType: "gtm-thankyou-1.0.0",
-        });
-        //Allocate Consumer Data
-        setInWindow("sovConsumer", {
-            consumerSalutation: thankYouConfig.consumerSalutation,
-            consumerFirstName: thankYouConfig.consumerFirstName,
-            consumerLastName: thankYouConfig.consumerLastName,
-            consumerEmail: thankYouConfig.consumerEmail,
-            consumerEmailHash: thankYouConfig.consumerEmailHash,
-            consumerStreet: thankYouConfig.consumerStreet,
-            consumerStreetNumber: thankYouConfig.consumerStreetNumber,
-            consumerCountry: thankYouConfig.consumerCountry,
-            consumerZipcode: thankYouConfig.consumerZipcode,
-            consumerCity: thankYouConfig.consumerCity,
-            consumerPhone: thankYouConfig.consumerPhone,
-            consumerYearOfBirth: thankYouConfig.consumerYearOfBirth,
-        });
-        //Inject flexibleIframe Script in page.
-        injectScript(sovendusUrl, data.gtmOnSuccess, data.gtmOnFailure, "use-cache");
-    }
+    log("Sovendus Tag [Thankyou]  - start");
+    const thankYouConfig = getThankyouPageConfig();
+    const sovThankyouStatus = setThankyouPageInitialStatus();
+    voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus);
     if (data.optimize && data.optimizeId) {
         const sovendusUrl = "https://www.sovopt.com/${data.optimizeId}/conversion/?ordervalue=${thankYouConfig.ordervalue}&ordernumber=${thankYouConfig.ordernumber}&vouchercode=${thankYouConfig.vouchercode}&email=${thankYouConfig.email}&subtext=XXX";
         injectScript(sovendusUrl, data.gtmOnSuccess, data.gtmOnFailure, "use-cache");
@@ -218,10 +177,7 @@ function thankYouPage() {
         log("Test");
         const sovReqToken = getCookieValues("sovReqToken")[0];
         const sovReqProductId = getCookieValues("sovReqProductId")[0];
-        const pixelUrl = "https://press-order-api.sovendus.com/ext/" +
-            sovReqProductId +
-            "/image?sovReqToken=" +
-            sovReqToken;
+        const pixelUrl = `https://press-order-api.sovendus.com/ext/${sovReqProductId}/image?sovReqToken=${sovReqToken}`;
         // Remove Checkout Products Cookie
         // setCookie("sovReqToken", "", {
         //   path: "/",
@@ -237,11 +193,69 @@ function thankYouPage() {
         sendPixel(pixelUrl, data.gtmOnSuccess, data.gtmOnFailure);
         sovThankyouStatus.executedCheckoutProducts = true;
     }
-    sovThankyouStatusAdder(sovThankyouStatus);
+    setInWindow("sovThankyouStatus", sovThankyouStatus);
+    log("Sovendus Tag [Thankyou] - end");
+}
+function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
+    if (data.voucherNetwork || data.checkoutBenefits) {
+        const trafficMediumNumber = thankYouConfig.settings.voucherNetwork.simple?.trafficMediumNumber;
+        const trafficSourceNumber = thankYouConfig.settings.voucherNetwork.simple?.trafficSourceNumber;
+        if (!trafficMediumNumber || !trafficSourceNumber) {
+            log("Sovendus Tag [Thankyou] - trafficMediumNumber or trafficSourceNumber is missing");
+            return;
+        }
+        const sovendusUrl = "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
+        const sovIframes = createQueue("sovIframes");
+        //Allocate Main- & Orderdata
+        sovIframes({
+            trafficSourceNumber,
+            trafficMediumNumber,
+            orderId: thankYouConfig.orderId,
+            orderValue: thankYouConfig.orderValue,
+            orderCurrency: thankYouConfig.orderCurrency,
+            usedCouponCode: thankYouConfig.usedCouponCode,
+            iframeContainerId: thankYouConfig.settings.voucherNetwork.iframeContainerId,
+            integrationType: PLUGIN_VERSION,
+        });
+        //Allocate Consumer Data
+        setInWindow("sovConsumer", {
+            consumerSalutation: thankYouConfig.consumerSalutation,
+            consumerFirstName: thankYouConfig.consumerFirstName,
+            consumerLastName: thankYouConfig.consumerLastName,
+            consumerEmail: thankYouConfig.consumerEmail,
+            consumerEmailHash: thankYouConfig.consumerEmailHash,
+            consumerStreet: thankYouConfig.consumerStreet,
+            consumerStreetNumber: thankYouConfig.consumerStreetNumber,
+            consumerCountry: thankYouConfig.consumerCountry,
+            consumerZipcode: thankYouConfig.consumerZipcode,
+            consumerCity: thankYouConfig.consumerCity,
+            consumerPhone: thankYouConfig.consumerPhone,
+            consumerYearOfBirth: thankYouConfig.consumerYearOfBirth,
+        });
+        //Inject flexibleIframe Script in page.
+        injectScript(sovendusUrl, () => {
+            /* empty */
+        }, data.gtmOnFailure, "use-cache");
+        sovThankyouStatus.loadedVoucherNetwork = true;
+    }
 }
 function getThankyouPageConfig() {
+    const streetInfo = typeof data.consumerFullStreet === "string"
+        ? splitStreetAndNumber(data.consumerFullStreet)
+        : undefined;
     const sovThankYouConfig = {
-        settings: {},
+        settings: {
+            voucherNetwork: {
+                anyCountryEnabled: false,
+            },
+            optimize: {
+                useGlobalId: false,
+                globalId: null,
+                globalEnabled: false,
+            },
+            checkoutProducts: false,
+            version: "2",
+        },
         orderId: data.orderId,
         orderValue: data.orderValue,
         orderCurrency: data.orderCurrency,
@@ -255,13 +269,15 @@ function getThankyouPageConfig() {
         consumerEmailHash: data.consumerEmailHash,
         consumerYearOfBirth: data.consumerYearOfBirth,
         consumerDateOfBirth: data.consumerDateOfBirth,
-        consumerStreet: data.consumerStreet,
-        consumerStreetNumber: data.consumerStreetNumber,
+        consumerStreet: streetInfo?.street || data.consumerStreet,
+        consumerStreetNumber: streetInfo?.number || data.consumerStreetNumber,
         consumerZipcode: data.consumerZipcode,
         consumerCity: data.consumerCity,
         consumerCountry: data.consumerCountry,
-        consumerLanguage: data.consumerLanguage,
         consumerPhone: data.consumerPhone,
+        usedCouponCodes: undefined,
+        sessionId: undefined,
+        timestamp: undefined,
     };
     setInWindow("sovThankYouConfig", sovThankYouConfig);
     return sovThankYouConfig;
@@ -280,35 +296,39 @@ function setThankyouPageInitialStatus() {
 function splitStreetAndNumber(street) {
     // Check if the input is valid (must be a non-empty string)
     if (typeof street !== "string" || street.trim().length === 0) {
-        return [street, ""];
+        return { street: street, number: "" };
     }
     // Trim leading and trailing spaces from the street string
-    var trimmedStreet = street.trim();
+    const trimmedStreet = street.trim();
     // Find the index of the last space in the string
-    var lastSpaceIndex = trimmedStreet.lastIndexOf(" ");
+    const lastSpaceIndex = trimmedStreet.lastIndexOf(" ");
     // If no space is found, there is no house number
     if (lastSpaceIndex === -1) {
-        return [trimmedStreet, ""];
+        return { street: trimmedStreet, number: "" };
     }
     // Extract the potential house number (everything after the last space)
-    var potentialNumber = trimmedStreet.slice(lastSpaceIndex + 1);
+    const potentialNumber = trimmedStreet.slice(lastSpaceIndex + 1);
     // Check if the potential house number is valid
     if (isValidHouseNumber(potentialNumber)) {
         // If valid, return the street (everything before the last space) and the house number
-        return [trimmedStreet.slice(0, lastSpaceIndex), potentialNumber];
+        return {
+            street: trimmedStreet.slice(0, lastSpaceIndex),
+            number: potentialNumber,
+        };
     }
     // If the house number is invalid, return the entire string as the street
-    return [trimmedStreet, ""];
+    return { street: trimmedStreet, number: "" };
 }
 // Helper function to check if a string is a valid house number
 function isValidHouseNumber(str) {
     // If the string is empty, it's not a valid house number
-    if (str.length === 0)
+    if (str.length === 0) {
         return false;
+    }
     // Iterate through each character in the string
-    for (var i = 0; i < str.length; i++) {
-        var char = str[i];
-        var charCode = char.charCodeAt(0);
+    for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        const charCode = char.charCodeAt(0);
         // Check if the character is a digit (0-9)
         if (charCode >= 48 && charCode <= 57) {
             continue; // Character is a digit, continue to the next character
