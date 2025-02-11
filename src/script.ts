@@ -652,21 +652,16 @@ function splitStreetAndNumber(street: string): {
   if (typeof street !== "string" || street.trim().length === 0) {
     return { streetName: street, number: "" };
   }
-
   // Trim leading and trailing spaces from the street string
   const trimmedStreet = street.trim();
-
   // Find the index of the last space in the string
   const lastSpaceIndex = trimmedStreet.lastIndexOf(" ");
-
   // If no space is found, there is no house number
   if (lastSpaceIndex === -1) {
     return { streetName: trimmedStreet, number: "" };
   }
-
   // Extract the potential house number (everything after the last space)
   const potentialNumber = trimmedStreet.slice(lastSpaceIndex + 1);
-
   // Check if the potential house number is valid
   if (isValidHouseNumber(potentialNumber)) {
     // If valid, return the street (everything before the last space) and the house number
@@ -675,7 +670,6 @@ function splitStreetAndNumber(street: string): {
       number: potentialNumber,
     };
   }
-
   // If the house number is invalid, return the entire string as the street
   return { streetName: trimmedStreet, number: "" };
 }
@@ -687,31 +681,20 @@ function isValidHouseNumber(str: string): boolean {
     return false;
   }
 
-  // Iterate through each character in the string
+  // Define valid characters for house numbers
+  const validCharacters =
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-/.+#";
+
+  // Check each character in the string
   for (let i = 0; i < str.length; i++) {
-    const char = str[i]!;
-    const charCode = char.charCodeAt(0);
-
-    // Check if the character is a digit (0-9)
-    if (charCode >= 48 && charCode <= 57) {
-      continue; // Character is a digit, continue to the next character
+    const char = str[i];
+    // If the character is not in the valid characters string, return false
+    if (validCharacters.indexOf(char) === -1) {
+      return false;
     }
-
-    // Check if the character is a letter (A-Z or a-z) and it's the last character
-    if (
-      i === str.length - 1 &&
-      ((charCode >= 65 && charCode <= 90) || // A-Z
-        (charCode >= 97 && charCode <= 122)) // a-z
-    ) {
-      continue; // Last character is a letter, continue
-    }
-
-    // If the character is neither a digit nor a letter at the end, it's invalid
-    return false;
   }
 
   // If all characters are valid, return true
   return true;
 }
-
 main();
