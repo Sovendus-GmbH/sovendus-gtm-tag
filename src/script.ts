@@ -101,8 +101,8 @@ const Undefined = null as unknown as undefined;
 
 const sovendusDomains = {
   optimize: "https://www.sovopt.com/",
-  voucherNetwork: "https://api.sovendus.com/",
-  checkoutProducts: "https://press-order-api.sovendus.com/",
+  sovendusApi: "https://api.sovendus.com/",
+  checkoutProducts: "https://press-order-api.sovendus.com/ext/",
 };
 
 /**
@@ -176,7 +176,7 @@ export function checkPermissions(): boolean {
     queryPermission("get_url", "query", cookieKeys.sovCouponCode) &&
     queryPermission("get_url", "query", cookieKeys.sovReqProductId) &&
     queryPermission("inject_script", sovendusDomains.optimize) &&
-    queryPermission("inject_script", sovendusDomains.voucherNetwork) &&
+    queryPermission("inject_script", sovendusDomains.sovendusApi) &&
     queryPermission("send_pixel", sovendusDomains.checkoutProducts)
   );
 }
@@ -284,13 +284,15 @@ function voucherNetworkPage(
       sovPageStatus.loadedVoucherNetworkVoucherCode = true;
     }
     sovPageStatus.loadedVoucherNetworkSwitzerland = true;
-    const sovLandingScript = sovendusDomains.voucherNetwork + "js/landing.js";
+    const sovLandingScript = sovendusDomains.sovendusApi + "js/landing.js";
     injectScript(
       sovLandingScript,
       () => {
         /* empty */
       },
-      data.gtmOnFailure,
+      () => {
+        /* empty */
+      },
       "use-chache",
     );
   }
@@ -341,7 +343,61 @@ function thankYouPage(): void {
   const sovThankyouStatus = setThankyouPageInitialStatus();
 
   voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus);
+  optimizeThankYouPage(thankYouConfig, sovThankyouStatus);
+  checkoutProductsThankYouPage(thankYouConfig, sovThankyouStatus);
 
+  setInWindow("sovThankyouStatus", sovThankyouStatus);
+  logger("Thankyou", "done");
+}
+
+function checkoutProductsThankYouPage(
+  thankYouConfig: SovendusThankYouPageConfig,
+  sovThankyouStatus: SovendusThankYouPageStatus,
+): void {
+  if (thankYouConfig.settings.checkoutProducts) {
+    const sovReqToken = getCookieValues("sovReqToken")[0];
+    if (!sovReqToken) {
+      return;
+    }
+    const sovReqProductId = getCookieValues("sovReqProductId")[0];
+    if (!sovReqProductId) {
+      logger("Thankyou", "sovReqProductId is missing in cookie");
+      return;
+    }
+    const pixelUrl =
+      sovendusDomains.checkoutProducts +
+      sovReqProductId +
+      "/image?sovReqToken=" +
+      sovReqToken;
+
+    // Remove Checkout Products Cookie
+    setCookie("sovReqToken", "delete");
+    setCookie("sovReqProductId", "delete");
+
+    sendPixel(
+      pixelUrl,
+      () => {
+        /* empty */
+      },
+      () => {
+        /* empty */
+      },
+    );
+    logger(
+      "Thankyou",
+      "success sovReqToken =" +
+        sovReqToken +
+        " - sovReqProductId =" +
+        sovReqProductId,
+    );
+    sovThankyouStatus.executedCheckoutProducts = true;
+  }
+}
+
+function optimizeThankYouPage(
+  thankYouConfig: SovendusThankYouPageConfig,
+  sovThankyouStatus: SovendusThankYouPageStatus,
+): void {
   if (thankYouConfig.settings.optimize.globalEnabled) {
     const sovendusUrl =
       sovendusDomains.optimize +
@@ -360,7 +416,9 @@ function thankYouPage(): void {
       () => {
         /* empty */
       },
-      data.gtmOnFailure,
+      () => {
+        /* empty */
+      },
       "use-cache",
     );
     logger("Thankyou", "success optimizeId =", [
@@ -368,44 +426,6 @@ function thankYouPage(): void {
     ]);
     sovThankyouStatus.loadedOptimize = true;
   }
-
-  if (thankYouConfig.settings.checkoutProducts) {
-    setCookie("sovReqToken", "add", "test");
-    setCookie("sovReqProductId", "add", "123");
-
-    const sovReqToken = getCookieValues("sovReqToken")[0];
-    const sovReqProductId = getCookieValues("sovReqProductId")[0];
-    const pixelUrl =
-      sovendusDomains.voucherNetwork +
-      "ext/" +
-      sovReqProductId +
-      "/image?sovReqToken=" +
-      sovReqToken;
-
-    // Remove Checkout Products Cookie
-    // setSetCookie("sovReqToken", "delete");
-    // setSetCookie("sovReqProductId", "delete");
-
-    // Send Checkout Products pixel
-    sendPixel(
-      pixelUrl,
-      () => {
-        /* empty */
-      },
-      data.gtmOnFailure,
-    );
-    logger(
-      "Thankyou",
-      "success sovReqToken =" +
-        sovReqToken +
-        " - sovReqProductId =" +
-        sovReqProductId,
-    );
-    sovThankyouStatus.executedCheckoutProducts = true;
-  }
-
-  setInWindow("sovThankyouStatus", sovThankyouStatus);
-  logger("Thankyou", "done");
 }
 
 function getCookieOptions(setType: "add" | "delete"): CookieSetOptions {
@@ -430,7 +450,7 @@ function voucherNetworkThankYouPage(
 ): void {
   if (thankYouConfig.settings.voucherNetwork.anyCountryEnabled) {
     const sovendusUrl =
-      sovendusDomains.checkoutProducts + "sovabo/common/js/flexibleIframe.js";
+      sovendusDomains.sovendusApi + "sovabo/common/js/flexibleIframe.js";
 
     const sovIframes = createQueue("sovIframes");
 
@@ -451,7 +471,6 @@ function voucherNetworkThankYouPage(
       integrationType: PLUGIN_VERSION,
     } satisfies SovConversionsType);
 
-    //Allocate Consumer Data
     setInWindow("sovConsumer", {
       consumerSalutation: thankYouConfig.consumerSalutation,
       consumerFirstName: thankYouConfig.consumerFirstName,
@@ -467,13 +486,14 @@ function voucherNetworkThankYouPage(
       consumerYearOfBirth: thankYouConfig.consumerYearOfBirth,
     } satisfies SovConsumerType);
 
-    //Inject flexibleIframe Script in page.
     injectScript(
       sovendusUrl,
       () => {
         /* empty */
       },
-      data.gtmOnFailure,
+      () => {
+        /* empty */
+      },
       "use-cache",
     );
     logger("Thankyou", "success voucher network");
@@ -561,9 +581,6 @@ function getThankyouPageConfig(): SovendusThankYouPageConfig {
     timestamp: Undefined,
   };
   setInWindow("sovThankyouConfig", sovThankyouConfig);
-  // TODO: remove
-  logger("Thankyou", "sovThankyouConfig =", [sovThankyouConfig]);
-  logger("Thankyou", "data =", [data]);
   return sovThankyouConfig;
 }
 
@@ -572,9 +589,12 @@ function calculateOrderValue(
   grossOrderValue: ExplicitAnyType,
   taxValue: ExplicitAnyType,
   shippingValue: ExplicitAnyType,
-): string {
+): string | undefined {
   if (netOrderValue) {
     return makeString(netOrderValue);
+  }
+  if (typeof grossOrderValue === "undefined") {
+    return Undefined;
   }
   let _grossOrderValue = makeNumber(makeString(grossOrderValue));
   let _taxValue = makeNumber(makeString(taxValue));
@@ -605,6 +625,12 @@ function getStreetAndNumber(
   street: string;
   number: string;
 } {
+  if ((!streetName && !streetNumber) || !streetWithNumber) {
+    return {
+      street: "",
+      number: "",
+    };
+  }
   if (!streetWithNumber) {
     return {
       street: makeString(streetName) || "",

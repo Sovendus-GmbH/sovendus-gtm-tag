@@ -14,8 +14,8 @@ const makeNumber = require("makeNumber");
 const Undefined = null;
 const sovendusDomains = {
   optimize: "https://www.sovopt.com/",
-  voucherNetwork: "https://api.sovendus.com/",
-  checkoutProducts: "https://press-order-api.sovendus.com/"
+  sovendusApi: "https://api.sovendus.com/",
+  checkoutProducts: "https://press-order-api.sovendus.com/ext/"
 };
 function main() {
   if (checkPermissions()) {
@@ -63,7 +63,7 @@ function checkPermissions() {
     "set_cookies",
     cookieKeys.sovReqProductId,
     getCookieOptions("delete")
-  ) && queryPermission("get_cookies", cookieKeys.sovReqToken) && queryPermission("get_cookies", cookieKeys.sovCouponCode) && queryPermission("get_cookies", cookieKeys.sovReqProductId) && queryPermission("get_url", "query", cookieKeys.sovReqToken) && queryPermission("get_url", "query", cookieKeys.sovCouponCode) && queryPermission("get_url", "query", cookieKeys.sovReqProductId) && queryPermission("inject_script", sovendusDomains.optimize) && queryPermission("inject_script", sovendusDomains.voucherNetwork) && queryPermission("send_pixel", sovendusDomains.checkoutProducts);
+  ) && queryPermission("get_cookies", cookieKeys.sovReqToken) && queryPermission("get_cookies", cookieKeys.sovCouponCode) && queryPermission("get_cookies", cookieKeys.sovReqProductId) && queryPermission("get_url", "query", cookieKeys.sovReqToken) && queryPermission("get_url", "query", cookieKeys.sovCouponCode) && queryPermission("get_url", "query", cookieKeys.sovReqProductId) && queryPermission("inject_script", sovendusDomains.optimize) && queryPermission("inject_script", sovendusDomains.sovendusApi) && queryPermission("send_pixel", sovendusDomains.checkoutProducts);
 }
 function logger(pageType, message, messages) {
   log("Sovendus Tag [" + pageType + "] - " + message, messages || "");
@@ -134,12 +134,13 @@ function voucherNetworkPage(config, sovPageStatus, urlSearchParams) {
       sovPageStatus.loadedVoucherNetworkVoucherCode = true;
     }
     sovPageStatus.loadedVoucherNetworkSwitzerland = true;
-    const sovLandingScript = sovendusDomains.voucherNetwork + "js/landing.js";
+    const sovLandingScript = sovendusDomains.sovendusApi + "js/landing.js";
     injectScript(
       sovLandingScript,
       () => {
       },
-      data.gtmOnFailure,
+      () => {
+      },
       "use-chache"
     );
   }
@@ -173,31 +174,31 @@ function thankYouPage() {
   const thankYouConfig = getThankyouPageConfig();
   const sovThankyouStatus = setThankyouPageInitialStatus();
   voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus);
-  if (thankYouConfig.settings.optimize.globalEnabled) {
-    const sovendusUrl = sovendusDomains.optimize + thankYouConfig.settings.optimize.globalId + "/conversion/?ordervalue=" + thankYouConfig.orderValue + "&ordernumber=" + thankYouConfig.orderId + "&vouchercode=" + thankYouConfig.usedCouponCode + "&email=" + thankYouConfig.consumerEmail + "&subtext=XXX";
-    injectScript(
-      sovendusUrl,
-      () => {
-      },
-      data.gtmOnFailure,
-      "use-cache"
-    );
-    logger("Thankyou", "success optimizeId =", [
-      thankYouConfig.settings.optimize.globalId
-    ]);
-    sovThankyouStatus.loadedOptimize = true;
-  }
+  optimizeThankYouPage(thankYouConfig, sovThankyouStatus);
+  checkoutProductsThankYouPage(thankYouConfig, sovThankyouStatus);
+  setInWindow("sovThankyouStatus", sovThankyouStatus);
+  logger("Thankyou", "done");
+}
+function checkoutProductsThankYouPage(thankYouConfig, sovThankyouStatus) {
   if (thankYouConfig.settings.checkoutProducts) {
-    setCookie("sovReqToken", "add", "test");
-    setCookie("sovReqProductId", "add", "123");
     const sovReqToken = getCookieValues("sovReqToken")[0];
+    if (!sovReqToken) {
+      return;
+    }
     const sovReqProductId = getCookieValues("sovReqProductId")[0];
-    const pixelUrl = sovendusDomains.voucherNetwork + "ext/" + sovReqProductId + "/image?sovReqToken=" + sovReqToken;
+    if (!sovReqProductId) {
+      logger("Thankyou", "sovReqProductId is missing in cookie");
+      return;
+    }
+    const pixelUrl = sovendusDomains.checkoutProducts + sovReqProductId + "/image?sovReqToken=" + sovReqToken;
+    setCookie("sovReqToken", "delete");
+    setCookie("sovReqProductId", "delete");
     sendPixel(
       pixelUrl,
       () => {
       },
-      data.gtmOnFailure
+      () => {
+      }
     );
     logger(
       "Thankyou",
@@ -205,8 +206,23 @@ function thankYouPage() {
     );
     sovThankyouStatus.executedCheckoutProducts = true;
   }
-  setInWindow("sovThankyouStatus", sovThankyouStatus);
-  logger("Thankyou", "done");
+}
+function optimizeThankYouPage(thankYouConfig, sovThankyouStatus) {
+  if (thankYouConfig.settings.optimize.globalEnabled) {
+    const sovendusUrl = sovendusDomains.optimize + thankYouConfig.settings.optimize.globalId + "/conversion/?ordervalue=" + thankYouConfig.orderValue + "&ordernumber=" + thankYouConfig.orderId + "&vouchercode=" + thankYouConfig.usedCouponCode + "&email=" + thankYouConfig.consumerEmail + "&subtext=XXX";
+    injectScript(
+      sovendusUrl,
+      () => {
+      },
+      () => {
+      },
+      "use-cache"
+    );
+    logger("Thankyou", "success optimizeId =", [
+      thankYouConfig.settings.optimize.globalId
+    ]);
+    sovThankyouStatus.loadedOptimize = true;
+  }
 }
 function getCookieOptions(setType) {
   return {
@@ -220,7 +236,7 @@ function setCookie(cookieName, setType, cookieValue) {
 }
 function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
   if (thankYouConfig.settings.voucherNetwork.anyCountryEnabled) {
-    const sovendusUrl = sovendusDomains.checkoutProducts + "sovabo/common/js/flexibleIframe.js";
+    const sovendusUrl = sovendusDomains.sovendusApi + "sovabo/common/js/flexibleIframe.js";
     const sovIframes = createQueue("sovIframes");
     sovIframes({
       trafficSourceNumber: makeString(
@@ -254,7 +270,8 @@ function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
       sovendusUrl,
       () => {
       },
-      data.gtmOnFailure,
+      () => {
+      },
       "use-cache"
     );
     logger("Thankyou", "success voucher network");
@@ -314,13 +331,14 @@ function getThankyouPageConfig() {
     timestamp: Undefined
   };
   setInWindow("sovThankyouConfig", sovThankyouConfig);
-  logger("Thankyou", "sovThankyouConfig =", [sovThankyouConfig]);
-  logger("Thankyou", "data =", [data]);
   return sovThankyouConfig;
 }
 function calculateOrderValue(netOrderValue, grossOrderValue, taxValue, shippingValue) {
   if (netOrderValue) {
     return makeString(netOrderValue);
+  }
+  if (typeof grossOrderValue === "undefined") {
+    return Undefined;
   }
   let _grossOrderValue = makeNumber(makeString(grossOrderValue));
   let _taxValue = makeNumber(makeString(taxValue));
@@ -342,6 +360,12 @@ function setThankyouPageInitialStatus() {
   return sovThankyouStatus;
 }
 function getStreetAndNumber(streetWithNumber, streetName, streetNumber) {
+  if (!streetName && !streetNumber || !streetWithNumber) {
+    return {
+      street: "",
+      number: ""
+    };
+  }
   if (!streetWithNumber) {
     return {
       street: makeString(streetName) || "",
@@ -391,4 +415,3 @@ function isValidHouseNumber(str) {
   return true;
 }
 main();
-//# sourceMappingURL=script.js.map

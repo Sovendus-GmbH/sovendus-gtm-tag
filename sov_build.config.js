@@ -7,6 +7,7 @@ const buildConfig = {
       options: {
         buildOptions: {
           target: "esnext",
+          sourcemap: false,
         },
         otherOptions: {
           esbuild: {
@@ -16,16 +17,6 @@ const buildConfig = {
         },
         outputOptions: {
           exports: "none",
-          //           commonjs
-          // esm
-          // module
-          // systemjs
-          // amd
-          // cjs
-          // es
-          // iife
-          // system
-          // umd
           format: "esm",
         },
         type: "vanilla",
