@@ -97,6 +97,7 @@ const parseUrl = require<
 >("parseUrl");
 const makeString = require<(value: ExplicitAnyType) => string>("makeString");
 const makeNumber = require<(value: ExplicitAnyType) => number>("makeNumber");
+const Undefined = null as unknown as undefined;
 
 function getSovendusUrl(
   urlType: "optimize" | "voucherNetwork" | "checkoutProducts",
@@ -224,7 +225,7 @@ function getLandingPageConfig(
         useGlobalId: true,
         globalId: data.optimizeIdPage
           ? makeString(data.optimizeIdPage)
-          : undefined,
+          : Undefined,
         globalEnabled: !!(data.optimizeIdPage && data.optimizeIdPage),
       },
       checkoutProducts: data.checkoutProductsPage || false,
@@ -504,7 +505,7 @@ function getThankyouPageConfig(): SovendusThankYouPageConfig {
       },
       optimize: {
         useGlobalId: true,
-        globalId: data.optimizeId ? makeString(data.optimizeId) : undefined,
+        globalId: data.optimizeId ? makeString(data.optimizeId) : Undefined,
         globalEnabled: data.optimizeId ? true : false,
       },
       checkoutProducts: data.checkoutProducts || false,
@@ -519,48 +520,48 @@ function getThankyouPageConfig(): SovendusThankYouPageConfig {
     ),
     orderCurrency: data.orderCurrency
       ? makeString(data.orderCurrency)
-      : undefined,
+      : Undefined,
     usedCouponCode: data.usedCouponCode
       ? makeString(data.usedCouponCode)
-      : undefined,
+      : Undefined,
     iframeContainerId: makeString(data.iframeContainerId),
     integrationType: PLUGIN_VERSION,
     consumerSalutation: (data.consumerSalutation
       ? makeString(data.consumerSalutation)
-      : undefined) as "Mr." | "Mrs." | undefined,
+      : Undefined) as "Mr." | "Mrs." | undefined,
     consumerFirstName: data.consumerFirstName
       ? makeString(data.consumerFirstName)
-      : undefined,
+      : Undefined,
     consumerLastName: data.consumerLastName
       ? makeString(data.consumerLastName)
-      : undefined,
+      : Undefined,
     consumerEmail: data.consumerEmail
       ? makeString(data.consumerEmail)
-      : undefined,
+      : Undefined,
     consumerEmailHash: data.consumerEmailHash
       ? makeString(data.consumerEmailHash)
-      : undefined,
+      : Undefined,
     consumerYearOfBirth: data.consumerYearOfBirth
       ? makeString(data.consumerYearOfBirth)
-      : undefined,
+      : Undefined,
     consumerDateOfBirth: data.consumerDateOfBirth
       ? makeString(data.consumerDateOfBirth)
-      : undefined,
+      : Undefined,
     consumerStreet: streetInfo.street,
     consumerStreetNumber: streetInfo.number,
     consumerZipcode: data.consumerZipcode
       ? makeString(data.consumerZipcode)
-      : undefined,
-    consumerCity: data.consumerCity ? makeString(data.consumerCity) : undefined,
+      : Undefined,
+    consumerCity: data.consumerCity ? makeString(data.consumerCity) : Undefined,
     consumerCountry: data.consumerCountry
       ? makeString(data.consumerCountry)
-      : undefined,
+      : Undefined,
     consumerPhone: data.consumerPhone
       ? makeString(data.consumerPhone)
-      : undefined,
-    usedCouponCodes: undefined,
-    sessionId: undefined,
-    timestamp: undefined,
+      : Undefined,
+    usedCouponCodes: Undefined,
+    sessionId: Undefined,
+    timestamp: Undefined,
   };
   setInWindow("sovThankyouConfig", sovThankyouConfig);
   // TODO: remove
@@ -615,18 +616,18 @@ function getStreetAndNumber(
   }
   const streetInfo = splitStreetAndNumber(makeString(streetWithNumber));
   return {
-    street: streetInfo.street,
+    street: streetInfo.streetName,
     number: streetInfo.number,
   };
 }
 
 function splitStreetAndNumber(street: string): {
-  street: string;
+  streetName: string;
   number: string;
 } {
   // Check if the input is valid (must be a non-empty string)
   if (typeof street !== "string" || street.trim().length === 0) {
-    return { street: street, number: "" };
+    return { streetName: street, number: "" };
   }
 
   // Trim leading and trailing spaces from the street string
@@ -637,7 +638,7 @@ function splitStreetAndNumber(street: string): {
 
   // If no space is found, there is no house number
   if (lastSpaceIndex === -1) {
-    return { street: trimmedStreet, number: "" };
+    return { streetName: trimmedStreet, number: "" };
   }
 
   // Extract the potential house number (everything after the last space)
@@ -647,13 +648,13 @@ function splitStreetAndNumber(street: string): {
   if (isValidHouseNumber(potentialNumber)) {
     // If valid, return the street (everything before the last space) and the house number
     return {
-      street: trimmedStreet.slice(0, lastSpaceIndex),
+      streetName: trimmedStreet.slice(0, lastSpaceIndex),
       number: potentialNumber,
     };
   }
 
   // If the house number is invalid, return the entire string as the street
-  return { street: trimmedStreet, number: "" };
+  return { streetName: trimmedStreet, number: "" };
 }
 
 // Helper function to check if a string is a valid house number
