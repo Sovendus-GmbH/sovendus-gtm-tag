@@ -239,8 +239,9 @@ function voucherNetworkPage(
   urlSearchParams: CookieStorageObject,
 ): void {
   if (
-    config.settings.voucherNetwork.simple?.trafficMediumNumber &&
-    config.settings.voucherNetwork.simple?.trafficSourceNumber
+    config.settings.voucherNetwork.simple &&
+    config.settings.voucherNetwork.simple.trafficMediumNumber &&
+    config.settings.voucherNetwork.simple.trafficSourceNumber
   ) {
     const sovCouponCode = urlSearchParams[cookieKeys.sovCouponCode];
     if (sovCouponCode) {
@@ -338,9 +339,11 @@ function thankYouPage(): void {
 
     const sovReqToken = getCookieValues("sovReqToken")[0];
     const sovReqProductId = getCookieValues("sovReqProductId")[0];
-    const pixelUrl = `https://press-order-api.sovendus.com/ext/${
-      sovReqProductId
-    }/image?sovReqToken=${sovReqToken}`;
+    const pixelUrl =
+      "https://press-order-api.sovendus.com/ext/" +
+      sovReqProductId +
+      "/image?sovReqToken=" +
+      sovReqToken;
 
     // Remove Checkout Products Cookie
     // setCookie("sovReqToken", "", {
@@ -369,11 +372,7 @@ function voucherNetworkThankYouPage(
   sovThankyouStatus: SovendusThankYouPageStatus,
 ): void {
   if (data.voucherNetwork || data.checkoutBenefits) {
-    const trafficMediumNumber =
-      thankYouConfig.settings.voucherNetwork.simple?.trafficMediumNumber;
-    const trafficSourceNumber =
-      thankYouConfig.settings.voucherNetwork.simple?.trafficSourceNumber;
-    if (!trafficMediumNumber || !trafficSourceNumber) {
+    if (!data.trafficMediumNumber || !data.trafficSourceNumber) {
       log(
         "Sovendus Tag [Thankyou] - trafficMediumNumber or trafficSourceNumber is missing",
       );
@@ -386,8 +385,8 @@ function voucherNetworkThankYouPage(
 
     //Allocate Main- & Orderdata
     sovIframes({
-      trafficSourceNumber,
-      trafficMediumNumber,
+      trafficSourceNumber: data.trafficSourceNumber,
+      trafficMediumNumber: data.trafficMediumNumber,
       orderId: thankYouConfig.orderId,
       orderValue: thankYouConfig.orderValue,
       orderCurrency: thankYouConfig.orderCurrency,
@@ -427,10 +426,12 @@ function voucherNetworkThankYouPage(
 }
 
 function getThankyouPageConfig(): SovendusThankYouPageConfig {
-  const streetInfo =
-    typeof data.consumerFullStreet === "string"
-      ? splitStreetAndNumber(data.consumerFullStreet)
-      : undefined;
+  const streetInfo = getStreetAndNumber(
+    data.consumerFullStreet,
+    data.consumerStreet,
+    data.consumerStreetNumber,
+  );
+
   const sovThankYouConfig: SovendusThankYouPageConfig = {
     settings: {
       voucherNetwork: {
@@ -457,8 +458,8 @@ function getThankyouPageConfig(): SovendusThankYouPageConfig {
     consumerEmailHash: data.consumerEmailHash,
     consumerYearOfBirth: data.consumerYearOfBirth,
     consumerDateOfBirth: data.consumerDateOfBirth,
-    consumerStreet: streetInfo?.street || data.consumerStreet,
-    consumerStreetNumber: streetInfo?.number || data.consumerStreetNumber,
+    consumerStreet: streetInfo.street,
+    consumerStreetNumber: streetInfo.number,
     consumerZipcode: data.consumerZipcode,
     consumerCity: data.consumerCity,
     consumerCountry: data.consumerCountry,
@@ -481,6 +482,27 @@ function setThankyouPageInitialStatus(): SovendusThankYouPageStatus {
   };
   setInWindow("sovThankyouStatus", sovThankyouStatus);
   return sovThankyouStatus;
+}
+
+function getStreetAndNumber(
+  streetWithNumber?: ExplicitAnyType,
+  streetName?: ExplicitAnyType,
+  streetNumber?: ExplicitAnyType,
+): {
+  street: string;
+  number: string;
+} {
+  if (typeof streetWithNumber !== "string") {
+    return {
+      street: streetName || "",
+      number: streetNumber || "",
+    };
+  }
+  const streetInfo = splitStreetAndNumber(streetWithNumber);
+  return {
+    street: streetInfo.street,
+    number: streetInfo.number,
+  };
 }
 
 function splitStreetAndNumber(street: string): {

@@ -114,8 +114,9 @@ function optimizePage(config, sovPageStatus) {
     }
 }
 function voucherNetworkPage(config, sovPageStatus, urlSearchParams) {
-    if (config.settings.voucherNetwork.simple?.trafficMediumNumber &&
-        config.settings.voucherNetwork.simple?.trafficSourceNumber) {
+    if (config.settings.voucherNetwork.simple &&
+        config.settings.voucherNetwork.simple.trafficMediumNumber &&
+        config.settings.voucherNetwork.simple.trafficSourceNumber) {
         const sovCouponCode = urlSearchParams[cookieKeys.sovCouponCode];
         if (sovCouponCode) {
             setCookie(cookieKeys.sovCouponCode, sovCouponCode, cookieAddOptions);
@@ -177,7 +178,10 @@ function thankYouPage() {
         log("Test");
         const sovReqToken = getCookieValues("sovReqToken")[0];
         const sovReqProductId = getCookieValues("sovReqProductId")[0];
-        const pixelUrl = `https://press-order-api.sovendus.com/ext/${sovReqProductId}/image?sovReqToken=${sovReqToken}`;
+        const pixelUrl = "https://press-order-api.sovendus.com/ext/" +
+            sovReqProductId +
+            "/image?sovReqToken=" +
+            sovReqToken;
         // Remove Checkout Products Cookie
         // setCookie("sovReqToken", "", {
         //   path: "/",
@@ -198,9 +202,7 @@ function thankYouPage() {
 }
 function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
     if (data.voucherNetwork || data.checkoutBenefits) {
-        const trafficMediumNumber = thankYouConfig.settings.voucherNetwork.simple?.trafficMediumNumber;
-        const trafficSourceNumber = thankYouConfig.settings.voucherNetwork.simple?.trafficSourceNumber;
-        if (!trafficMediumNumber || !trafficSourceNumber) {
+        if (!data.trafficMediumNumber || !data.trafficSourceNumber) {
             log("Sovendus Tag [Thankyou] - trafficMediumNumber or trafficSourceNumber is missing");
             return;
         }
@@ -208,8 +210,8 @@ function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
         const sovIframes = createQueue("sovIframes");
         //Allocate Main- & Orderdata
         sovIframes({
-            trafficSourceNumber,
-            trafficMediumNumber,
+            trafficSourceNumber: data.trafficSourceNumber,
+            trafficMediumNumber: data.trafficMediumNumber,
             orderId: thankYouConfig.orderId,
             orderValue: thankYouConfig.orderValue,
             orderCurrency: thankYouConfig.orderCurrency,
@@ -240,9 +242,7 @@ function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
     }
 }
 function getThankyouPageConfig() {
-    const streetInfo = typeof data.consumerFullStreet === "string"
-        ? splitStreetAndNumber(data.consumerFullStreet)
-        : undefined;
+    const streetInfo = getStreetAndNumber(data.consumerFullStreet, data.consumerStreet, data.consumerStreetNumber);
     const sovThankYouConfig = {
         settings: {
             voucherNetwork: {
@@ -269,8 +269,8 @@ function getThankyouPageConfig() {
         consumerEmailHash: data.consumerEmailHash,
         consumerYearOfBirth: data.consumerYearOfBirth,
         consumerDateOfBirth: data.consumerDateOfBirth,
-        consumerStreet: streetInfo?.street || data.consumerStreet,
-        consumerStreetNumber: streetInfo?.number || data.consumerStreetNumber,
+        consumerStreet: streetInfo.street,
+        consumerStreetNumber: streetInfo.number,
         consumerZipcode: data.consumerZipcode,
         consumerCity: data.consumerCity,
         consumerCountry: data.consumerCountry,
@@ -292,6 +292,19 @@ function setThankyouPageInitialStatus() {
     };
     setInWindow("sovThankyouStatus", sovThankyouStatus);
     return sovThankyouStatus;
+}
+function getStreetAndNumber(streetWithNumber, streetName, streetNumber) {
+    if (typeof streetWithNumber !== "string") {
+        return {
+            street: streetName || "",
+            number: streetNumber || "",
+        };
+    }
+    const streetInfo = splitStreetAndNumber(streetWithNumber);
+    return {
+        street: streetInfo.street,
+        number: streetInfo.number,
+    };
 }
 function splitStreetAndNumber(street) {
     // Check if the input is valid (must be a non-empty string)
