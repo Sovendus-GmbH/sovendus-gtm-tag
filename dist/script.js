@@ -53,7 +53,7 @@ function checkPermissions() {
         queryPermission("get_url", "query", cookieKeys.sovReqProductId));
 }
 function logger(pageType, message, ...messages) {
-    log(`Sovendus Tag [${pageType}] - ${message}`, messages);
+    log("Sovendus Tag [" + pageType + "] - " + message, messages);
 }
 /**
  * landing page related functions
@@ -78,7 +78,7 @@ function getLandingPageConfig(sovPageStatus) {
             },
             optimize: {
                 useGlobalId: true,
-                globalId: data.optimizeIdPage ? data.optimizeIdPage : undefined,
+                globalId: data.optimizeIdPage ? String(data.optimizeIdPage) : undefined,
                 globalEnabled: !!(data.optimizeIdPage && data.optimizeIdPage),
             },
             checkoutProducts: data.checkoutProductsPage || false,
@@ -200,16 +200,17 @@ function setCookie(cookieName, setType, cookieValue = "") {
 }
 function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
     if (data.voucherNetwork || data.checkoutBenefits) {
-        if (!data.trafficMediumNumber || !data.trafficSourceNumber) {
-            logger("Thankyou", "trafficMediumNumber or trafficSourceNumber is missing");
+        if (isNaN(Number(data.trafficMediumNumber)) ||
+            isNaN(Number(data.trafficSourceNumber))) {
+            logger("Thankyou", "trafficMediumNumber or trafficSourceNumber is missing or not a number");
             return;
         }
         const sovendusUrl = "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
         const sovIframes = createQueue("sovIframes");
         //Allocate Main- & Orderdata
         sovIframes({
-            trafficSourceNumber: data.trafficSourceNumber,
-            trafficMediumNumber: data.trafficMediumNumber,
+            trafficSourceNumber: String(data.trafficSourceNumber),
+            trafficMediumNumber: String(data.trafficMediumNumber),
             orderId: thankYouConfig.orderId,
             orderValue: thankYouConfig.orderValue,
             orderCurrency: thankYouConfig.orderCurrency,
@@ -249,31 +250,49 @@ function getThankyouPageConfig() {
             },
             optimize: {
                 useGlobalId: false,
-                globalId: null,
+                globalId: undefined,
                 globalEnabled: false,
             },
             checkoutProducts: false,
             version: "2",
         },
-        orderId: data.orderId,
+        orderId: String(data.orderId),
         orderValue: calculateOrderValue(),
-        orderCurrency: data.orderCurrency,
-        usedCouponCode: data.usedCouponCode,
-        iframeContainerId: data.iframeContainerId,
-        integrationType: data.integrationType,
-        consumerSalutation: data.consumerSalutation,
-        consumerFirstName: data.consumerFirstName,
-        consumerLastName: data.consumerLastName,
-        consumerEmail: data.consumerEmail,
-        consumerEmailHash: data.consumerEmailHash,
-        consumerYearOfBirth: data.consumerYearOfBirth,
-        consumerDateOfBirth: data.consumerDateOfBirth,
+        orderCurrency: data.orderCurrency ? String(data.orderCurrency) : undefined,
+        usedCouponCode: data.usedCouponCode
+            ? String(data.usedCouponCode)
+            : undefined,
+        iframeContainerId: String(data.iframeContainerId),
+        integrationType: PLUGIN_VERSION,
+        consumerSalutation: (data.consumerSalutation
+            ? String(data.consumerSalutation)
+            : undefined),
+        consumerFirstName: data.consumerFirstName
+            ? String(data.consumerFirstName)
+            : undefined,
+        consumerLastName: data.consumerLastName
+            ? String(data.consumerLastName)
+            : undefined,
+        consumerEmail: data.consumerEmail ? String(data.consumerEmail) : undefined,
+        consumerEmailHash: data.consumerEmailHash
+            ? String(data.consumerEmailHash)
+            : undefined,
+        consumerYearOfBirth: data.consumerYearOfBirth
+            ? String(data.consumerYearOfBirth)
+            : undefined,
+        consumerDateOfBirth: data.consumerDateOfBirth
+            ? String(data.consumerDateOfBirth)
+            : undefined,
         consumerStreet: streetInfo.street,
         consumerStreetNumber: streetInfo.number,
-        consumerZipcode: data.consumerZipcode,
-        consumerCity: data.consumerCity,
-        consumerCountry: data.consumerCountry,
-        consumerPhone: data.consumerPhone,
+        consumerZipcode: data.consumerZipcode
+            ? String(data.consumerZipcode)
+            : undefined,
+        consumerCity: data.consumerCity ? String(data.consumerCity) : undefined,
+        consumerCountry: data.consumerCountry
+            ? String(data.consumerCountry)
+            : undefined,
+        consumerPhone: data.consumerPhone ? String(data.consumerPhone) : undefined,
         usedCouponCodes: undefined,
         sessionId: undefined,
         timestamp: undefined,
@@ -300,8 +319,8 @@ function setThankyouPageInitialStatus() {
 function getStreetAndNumber(streetWithNumber, streetName, streetNumber) {
     if (typeof streetWithNumber !== "string") {
         return {
-            street: streetName || "",
-            number: streetNumber || "",
+            street: String(streetName) || "",
+            number: String(streetNumber) || "",
         };
     }
     const streetInfo = splitStreetAndNumber(streetWithNumber);

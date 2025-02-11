@@ -29,10 +29,10 @@
     "simple-import-sort/imports": "error",
     "simple-import-sort/exports": "error",
     "unused-imports/no-unused-imports": "error",
-    "@typescript-eslint/no-unsafe-member-access": "off",
+    "@typescript-eslint/no-unsafe-member-access": "error",
     // TypeScript-specific rules
-    "@typescript-eslint/no-unsafe-assignment": "off",
-    "@typescript-eslint/restrict-template-expressions": "off",
+    "@typescript-eslint/no-unsafe-assignment": "error",
+    "@typescript-eslint/restrict-template-expressions": "error",
     "@typescript-eslint/consistent-type-imports": "error", // Enforce consistent usage of type imports
     "@typescript-eslint/no-unused-vars": [
       "error",

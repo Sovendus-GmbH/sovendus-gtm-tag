@@ -1,10 +1,7 @@
-import type {
-  ExplicitAnyType,
-  InterfaceDataElementKeyType,
-} from "sovendus-integration-types";
+import type { InterfaceDataElementKeyType } from "sovendus-integration-types";
 
 export type CookieStorageObject = {
-  [key in InterfaceDataElementKeyType]: ExplicitAnyType;
+  [key in InterfaceDataElementKeyType]: string | undefined;
 };
 
 export type CookieSetOptions = {
