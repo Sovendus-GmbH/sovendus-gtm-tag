@@ -98,6 +98,16 @@ const parseUrl = require<
 const makeString = require<(value: ExplicitAnyType) => string>("makeString");
 const makeNumber = require<(value: ExplicitAnyType) => number>("makeNumber");
 
+function getSovendusUrl(
+  urlType: "optimize" | "voucherNetwork" | "checkoutProducts",
+): string {
+  return urlType === "optimize"
+    ? "https://www.sovopt.com/"
+    : urlType === "voucherNetwork"
+      ? "https://api.sovendus.com/"
+      : "https://press-order-api.sovendus.com/";
+}
+
 /**
  * Main function
  */
@@ -167,7 +177,10 @@ function checkPermissions(): boolean {
     queryPermission("get_cookies", cookieKeys.sovReqProductId) &&
     queryPermission("get_url", "query", cookieKeys.sovReqToken) &&
     queryPermission("get_url", "query", cookieKeys.sovCouponCode) &&
-    queryPermission("get_url", "query", cookieKeys.sovReqProductId)
+    queryPermission("get_url", "query", cookieKeys.sovReqProductId) &&
+    queryPermission("inject_script", getSovendusUrl("optimize")) &&
+    queryPermission("inject_script", getSovendusUrl("voucherNetwork")) &&
+    queryPermission("send_pixel", getSovendusUrl("checkoutProducts"))
   );
 }
 
