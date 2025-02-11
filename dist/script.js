@@ -25,7 +25,7 @@ function main() {
         data.gtmOnSuccess();
     }
     else {
-        log("No permission to get/set sovReqCookie or read url path");
+        log("Sovendus Tag - No permission to get/set sovReqCookie or read url path");
         data.gtmOnFailure();
     }
 }
@@ -46,12 +46,15 @@ function checkPermissions() {
         queryPermission("get_url", "query", cookieKeys.sovCouponCode) &&
         queryPermission("get_url", "query", cookieKeys.sovReqProductId));
 }
+function logger(pageType, message, ...messages) {
+    log(`Sovendus Tag [${pageType}] - ${message}`, messages);
+}
 /**
  * landing page related functions
  *
  */
 function landingPage() {
-    log("Sovendus Tag [Page]  - start");
+    logger("Page", "starting...");
     const sovPageStatus = setLandingPageInitialStatus();
     const config = getLandingPageConfig(sovPageStatus);
     const urlSearchParams = getUrlObject();
@@ -59,26 +62,20 @@ function landingPage() {
     checkoutProductsPage(config, sovPageStatus, urlSearchParams);
     voucherNetworkPage(config, sovPageStatus, urlSearchParams);
     setInWindow("sovPageStatus", sovPageStatus);
-    log("Sovendus Page Tag - end");
+    logger("Page", "done");
 }
 function getLandingPageConfig(sovPageStatus) {
-    const optimizeId = data.optimizeId;
     const sovPageConfig = {
         settings: {
             voucherNetwork: {
-                simple: {
-                    trafficSourceNumber: data.trafficSourceNumber,
-                    trafficMediumNumber: data.trafficMediumNumber,
-                },
-                anyCountryEnabled: !!(data.trafficSourceNumber && data.trafficMediumNumber),
-                iframeContainerId: data.iframeContainerId,
+                cookieTracking: data.voucherNetworkPage || false,
             },
             optimize: {
                 useGlobalId: true,
-                globalId: optimizeId,
-                globalEnabled: !!data.optimizeId,
+                globalId: data.optimizeIdPage ? data.optimizeIdPage : undefined,
+                globalEnabled: !!(data.optimizeIdPage && data.optimizeIdPage),
             },
-            checkoutProducts: data.checkoutProducts || false,
+            checkoutProducts: data.checkoutProductsPage || false,
             version: "2",
         },
         integrationType: PLUGIN_VERSION,
@@ -108,24 +105,26 @@ function optimizePage(config, sovPageStatus) {
     if (config.settings.optimize.globalId &&
         config.settings.optimize.globalEnabled) {
         const sovendusUrl = "https://www.sovopt.com/" + config.settings.optimize.globalId;
-        injectScript(sovendusUrl, data.gtmOnSuccess, data.gtmOnFailure, "use-cache");
-        log("Sovendus Tag [Page] - success optimizeId =", config.settings.optimize.globalId);
+        injectScript(sovendusUrl, () => {
+            /* empty */
+        }, data.gtmOnFailure, "use-cache");
+        logger("Page", "success optimizeId =", config.settings.optimize.globalId);
         sovPageStatus.loadedOptimize = true;
     }
 }
 function voucherNetworkPage(config, sovPageStatus, urlSearchParams) {
-    if (config.settings.voucherNetwork.simple &&
-        config.settings.voucherNetwork.simple.trafficMediumNumber &&
-        config.settings.voucherNetwork.simple.trafficSourceNumber) {
+    if (config.settings.voucherNetwork.cookieTracking) {
         const sovCouponCode = urlSearchParams[cookieKeys.sovCouponCode];
         if (sovCouponCode) {
             setCookie(cookieKeys.sovCouponCode, sovCouponCode, cookieAddOptions);
-            log("Sovendus Page Tag - success sovCouponCode =", sovCouponCode);
+            logger("Page", "success sovCouponCode =", sovCouponCode);
             sovPageStatus.loadedVoucherNetworkVoucherCode = true;
         }
         sovPageStatus.loadedVoucherNetworkSwitzerland = true;
         const sovLandingScript = "https://api.sovendus.com/js/landing.js";
-        injectScript(sovLandingScript, data.gtmOnSuccess, data.gtmOnFailure, "use-chache");
+        injectScript(sovLandingScript, () => {
+            /* empty */
+        }, data.gtmOnFailure, "use-chache");
     }
 }
 function checkoutProductsPage(config, sovPageStatus, urlSearchParams) {
@@ -134,13 +133,13 @@ function checkoutProductsPage(config, sovPageStatus, urlSearchParams) {
         const sovReqProductId = urlSearchParams[cookieKeys.sovReqProductId];
         if (sovReqToken || sovReqProductId) {
             if (!sovReqToken || !sovReqProductId) {
-                log("Sovendus Page Tag - sovReqToken or sovReqProductId is missing in url");
+                logger("Page", "sovReqToken or sovReqProductId is missing in url");
                 sovPageStatus.missingSovReqTokenOrProductId = true;
             }
             else {
                 setCookie(cookieKeys.sovReqToken, sovReqToken, cookieAddOptions);
                 setCookie(cookieKeys.sovReqProductId, sovReqProductId, cookieAddOptions);
-                log("Sovendus Page Tag - success sovReqToken =", sovReqToken, "sovReqProductId =", sovReqProductId);
+                logger("Page", "success sovReqToken =", sovReqToken, "sovReqProductId =", sovReqProductId);
                 sovPageStatus.executedCheckoutProducts = true;
             }
         }
@@ -155,13 +154,15 @@ function getUrlObject() {
  *
  */
 function thankYouPage() {
-    log("Sovendus Tag [Thankyou]  - start");
+    logger("Thankyou", "starting...");
     const thankYouConfig = getThankyouPageConfig();
     const sovThankyouStatus = setThankyouPageInitialStatus();
     voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus);
     if (data.optimize && data.optimizeId) {
         const sovendusUrl = "https://www.sovopt.com/${data.optimizeId}/conversion/?ordervalue=${thankYouConfig.ordervalue}&ordernumber=${thankYouConfig.ordernumber}&vouchercode=${thankYouConfig.vouchercode}&email=${thankYouConfig.email}&subtext=XXX";
-        injectScript(sovendusUrl, data.gtmOnSuccess, data.gtmOnFailure, "use-cache");
+        injectScript(sovendusUrl, () => {
+            /* empty */
+        }, data.gtmOnFailure, "use-cache");
         sovThankyouStatus.loadedOptimize = true;
     }
     if (data.checkoutProducts) {
@@ -175,7 +176,6 @@ function thankYouPage() {
             "max-age": 60 * 60 * 24 * 31,
             "secure": true,
         });
-        log("Test");
         const sovReqToken = getCookieValues("sovReqToken")[0];
         const sovReqProductId = getCookieValues("sovReqProductId")[0];
         const pixelUrl = "https://press-order-api.sovendus.com/ext/" +
@@ -194,16 +194,19 @@ function thankYouPage() {
         //   secure: true,
         // });
         // Send Checkout Products pixel
-        sendPixel(pixelUrl, data.gtmOnSuccess, data.gtmOnFailure);
+        sendPixel(pixelUrl, () => {
+            /* empty */
+        }, data.gtmOnFailure);
+        logger("Thankyou", "success sovReqToken =", sovReqToken, "sovReqProductId =", sovReqProductId);
         sovThankyouStatus.executedCheckoutProducts = true;
     }
     setInWindow("sovThankyouStatus", sovThankyouStatus);
-    log("Sovendus Tag [Thankyou] - end");
+    logger("Thankyou", "done");
 }
 function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
     if (data.voucherNetwork || data.checkoutBenefits) {
         if (!data.trafficMediumNumber || !data.trafficSourceNumber) {
-            log("Sovendus Tag [Thankyou] - trafficMediumNumber or trafficSourceNumber is missing");
+            logger("Thankyou", "trafficMediumNumber or trafficSourceNumber is missing");
             return;
         }
         const sovendusUrl = "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
@@ -238,12 +241,13 @@ function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
         injectScript(sovendusUrl, () => {
             /* empty */
         }, data.gtmOnFailure, "use-cache");
+        logger("Thankyou", "success voucher network");
         sovThankyouStatus.loadedVoucherNetwork = true;
     }
 }
 function getThankyouPageConfig() {
     const streetInfo = getStreetAndNumber(data.consumerFullStreet, data.consumerStreet, data.consumerStreetNumber);
-    const sovThankYouConfig = {
+    const sovThankyouConfig = {
         settings: {
             voucherNetwork: {
                 anyCountryEnabled: false,
@@ -279,8 +283,8 @@ function getThankyouPageConfig() {
         sessionId: undefined,
         timestamp: undefined,
     };
-    setInWindow("sovThankYouConfig", sovThankYouConfig);
-    return sovThankYouConfig;
+    setInWindow("sovThankyouConfig", sovThankyouConfig);
+    return sovThankyouConfig;
 }
 function setThankyouPageInitialStatus() {
     const sovThankyouStatus = {
