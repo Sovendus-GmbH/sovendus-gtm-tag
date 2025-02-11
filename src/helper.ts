@@ -2,9 +2,9 @@ import type { ExplicitAnyType } from "sovendus-integration-types";
 
 export function getStreetAndNumber(
   makeString: (value: ExplicitAnyType) => string,
-  streetWithNumber?: ExplicitAnyType,
-  streetName?: ExplicitAnyType,
-  streetNumber?: ExplicitAnyType,
+  streetWithNumber: ExplicitAnyType,
+  streetName: ExplicitAnyType,
+  streetNumber: ExplicitAnyType,
 ): {
   street: string;
   number: string;
@@ -65,7 +65,7 @@ function isValidHouseNumber(str: string): boolean {
 
   // Check each character in the string
   for (let i = 0; i < str.length; i++) {
-    const char = str[i];
+    const char = str[i]!;
     // If the character is not in the valid characters string, return false
     if (validCharacters.indexOf(char) === -1) {
       return false;

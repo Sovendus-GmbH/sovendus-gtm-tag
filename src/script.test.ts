@@ -25,7 +25,7 @@ describe("Street and Street Number Functionality", () => {
 
   it("should return an empty number for invalid house numbers", () => {
     const result = getStreetAndNumber(makeString, "Teststraße 12/34", "", "");
-    expect(result).toEqual({ street: "Teststraße", number: "" });
+    expect(result).toEqual({ street: "Teststraße", number: "12/34" });
   });
 
   it("should handle empty input correctly", () => {
@@ -51,5 +51,52 @@ describe("Street and Street Number Functionality", () => {
   it("should return street and number with a letter suffix", () => {
     const result = getStreetAndNumber(makeString, "Neuer Weg 12A", "", "");
     expect(result).toEqual({ street: "Neuer Weg", number: "12A" });
+  });
+
+  // Additional tests for special characters
+  it("should return street and number with special characters in the number", () => {
+    const result = getStreetAndNumber(
+      makeString,
+      "International Street 123-456/789",
+      "",
+      "",
+    );
+    expect(result).toEqual({
+      street: "International Street",
+      number: "123-456/789",
+    });
+  });
+
+  it("should return street and number with a plus sign in the number", () => {
+    const result = getStreetAndNumber(makeString, "Main Street 5+1", "", "");
+    expect(result).toEqual({ street: "Main Street", number: "5+1" });
+  });
+
+  it("should return street and number with a hash sign in the number", () => {
+    const result = getStreetAndNumber(makeString, "Second Avenue 10#2", "", "");
+    expect(result).toEqual({ street: "Second Avenue", number: "10#2" });
+  });
+
+  it("should return street and number with a dot in the number", () => {
+    const result = getStreetAndNumber(
+      makeString,
+      "Third Boulevard 3.14",
+      "",
+      "",
+    );
+    expect(result).toEqual({ street: "Third Boulevard", number: "3.14" });
+  });
+
+  it("should return street and number with multiple special characters", () => {
+    const result = getStreetAndNumber(
+      makeString,
+      "Fourth Street 12-34/56+78#90",
+      "",
+      "",
+    );
+    expect(result).toEqual({
+      street: "Fourth Street",
+      number: "12-34/56+78#90",
+    });
   });
 });

@@ -1,3 +1,48 @@
+function getStreetAndNumber(makeString, streetWithNumber, streetName, streetNumber) {
+  if (!streetWithNumber) {
+    return {
+      street: makeString(streetName) || "",
+      number: makeString(streetNumber) || ""
+    };
+  }
+  const streetInfo = splitStreetAndNumber(makeString(streetWithNumber));
+  return {
+    street: streetInfo.street,
+    number: streetInfo.number
+  };
+}
+function splitStreetAndNumber(street) {
+  if (typeof street !== "string" || street.trim().length === 0) {
+    return { street, number: "" };
+  }
+  const trimmedStreet = street.trim();
+  const lastSpaceIndex = trimmedStreet.lastIndexOf(" ");
+  if (lastSpaceIndex === -1) {
+    return { street: trimmedStreet, number: "" };
+  }
+  const potentialNumber = trimmedStreet.slice(lastSpaceIndex + 1);
+  if (isValidHouseNumber(potentialNumber)) {
+    return {
+      street: trimmedStreet.slice(0, lastSpaceIndex),
+      number: potentialNumber
+    };
+  }
+  return { street: trimmedStreet, number: "" };
+}
+function isValidHouseNumber(str) {
+  if (str.length === 0) {
+    return false;
+  }
+  const validCharacters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-/.+#";
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (validCharacters.indexOf(char) === -1) {
+      return false;
+    }
+  }
+  return true;
+}
+
 const PLUGIN_VERSION = "gtm-new-1.0.0";
 const setInWindow = require("setInWindow");
 const injectScript = require("injectScript");
@@ -280,6 +325,7 @@ function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
 }
 function getThankyouPageConfig() {
   const streetInfo = getStreetAndNumber(
+    makeString,
     data.consumerFullStreet,
     data.consumerStreet,
     data.consumerStreetNumber
@@ -358,60 +404,5 @@ function setThankyouPageInitialStatus() {
   };
   setInWindow("sovThankyouStatus", sovThankyouStatus);
   return sovThankyouStatus;
-}
-function getStreetAndNumber(streetWithNumber, streetName, streetNumber) {
-  if (!streetName && !streetNumber || !streetWithNumber) {
-    return {
-      street: "",
-      number: ""
-    };
-  }
-  if (!streetWithNumber) {
-    return {
-      street: makeString(streetName) || "",
-      number: makeString(streetNumber) || ""
-    };
-  }
-  const streetInfo = splitStreetAndNumber(makeString(streetWithNumber));
-  return {
-    street: streetInfo.streetName,
-    number: streetInfo.number
-  };
-}
-function splitStreetAndNumber(street) {
-  if (typeof street !== "string" || street.trim().length === 0) {
-    return { streetName: street, number: "" };
-  }
-  const trimmedStreet = street.trim();
-  const lastSpaceIndex = trimmedStreet.lastIndexOf(" ");
-  if (lastSpaceIndex === -1) {
-    return { streetName: trimmedStreet, number: "" };
-  }
-  const potentialNumber = trimmedStreet.slice(lastSpaceIndex + 1);
-  if (isValidHouseNumber(potentialNumber)) {
-    return {
-      streetName: trimmedStreet.slice(0, lastSpaceIndex),
-      number: potentialNumber
-    };
-  }
-  return { streetName: trimmedStreet, number: "" };
-}
-function isValidHouseNumber(str) {
-  if (str.length === 0) {
-    return false;
-  }
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
-    const charCode = char.charCodeAt(0);
-    if (charCode >= 48 && charCode <= 57) {
-      continue;
-    }
-    if (i === str.length - 1 && (charCode >= 65 && charCode <= 90 || // A-Z
-    charCode >= 97 && charCode <= 122)) {
-      continue;
-    }
-    return false;
-  }
-  return true;
 }
 main();

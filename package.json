@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "description": "Sovendus Google Tag Manager Template",
     "scripts": {
-        "build": "yarn lint && sov-build build",
+        "build": "yarn lint && yarn test run && sov-build build",
         "lint": "eslint ./src --ext .ts --fix",
         "test": "vitest"
     },
