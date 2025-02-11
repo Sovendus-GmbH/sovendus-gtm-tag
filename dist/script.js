@@ -12,6 +12,11 @@ const parseUrl = require("parseUrl");
 const makeString = require("makeString");
 const makeNumber = require("makeNumber");
 const Undefined = null;
+const sovendusDomains = {
+  optimize: "https://www.sovopt.com/",
+  voucherNetwork: "https://api.sovendus.com/",
+  checkoutProducts: "https://press-order-api.sovendus.com/"
+};
 function main() {
   if (checkPermissions()) {
     if (data.pageType === "page") {
@@ -58,7 +63,7 @@ function checkPermissions() {
     "set_cookies",
     cookieKeys.sovReqProductId,
     getCookieOptions("delete")
-  ) && queryPermission("get_cookies", cookieKeys.sovReqToken) && queryPermission("get_cookies", cookieKeys.sovCouponCode) && queryPermission("get_cookies", cookieKeys.sovReqProductId) && queryPermission("get_url", "query", cookieKeys.sovReqToken) && queryPermission("get_url", "query", cookieKeys.sovCouponCode) && queryPermission("get_url", "query", cookieKeys.sovReqProductId);
+  ) && queryPermission("get_cookies", cookieKeys.sovReqToken) && queryPermission("get_cookies", cookieKeys.sovCouponCode) && queryPermission("get_cookies", cookieKeys.sovReqProductId) && queryPermission("get_url", "query", cookieKeys.sovReqToken) && queryPermission("get_url", "query", cookieKeys.sovCouponCode) && queryPermission("get_url", "query", cookieKeys.sovReqProductId) && queryPermission("inject_script", sovendusDomains.optimize) && queryPermission("inject_script", sovendusDomains.voucherNetwork) && queryPermission("send_pixel", sovendusDomains.checkoutProducts);
 }
 function logger(pageType, message, messages) {
   log("Sovendus Tag [" + pageType + "] - " + message, messages || "");
@@ -108,7 +113,7 @@ function setLandingPageInitialStatus() {
 }
 function optimizePage(config, sovPageStatus) {
   if (config.settings.optimize.globalId && config.settings.optimize.globalEnabled) {
-    const sovendusUrl = "https://www.sovopt.com/" + config.settings.optimize.globalId;
+    const sovendusUrl = sovendusDomains.optimize + config.settings.optimize.globalId;
     injectScript(
       sovendusUrl,
       () => {
@@ -129,7 +134,7 @@ function voucherNetworkPage(config, sovPageStatus, urlSearchParams) {
       sovPageStatus.loadedVoucherNetworkVoucherCode = true;
     }
     sovPageStatus.loadedVoucherNetworkSwitzerland = true;
-    const sovLandingScript = "https://api.sovendus.com/js/landing.js";
+    const sovLandingScript = sovendusDomains.voucherNetwork + "js/landing.js";
     injectScript(
       sovLandingScript,
       () => {
@@ -169,7 +174,7 @@ function thankYouPage() {
   const sovThankyouStatus = setThankyouPageInitialStatus();
   voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus);
   if (thankYouConfig.settings.optimize.globalEnabled) {
-    const sovendusUrl = "https://www.sovopt.com/" + thankYouConfig.settings.optimize.globalId + "/conversion/?ordervalue=" + thankYouConfig.orderValue + "&ordernumber=" + thankYouConfig.orderId + "&vouchercode=" + thankYouConfig.usedCouponCode + "&email=" + thankYouConfig.consumerEmail + "&subtext=XXX";
+    const sovendusUrl = sovendusDomains.optimize + thankYouConfig.settings.optimize.globalId + "/conversion/?ordervalue=" + thankYouConfig.orderValue + "&ordernumber=" + thankYouConfig.orderId + "&vouchercode=" + thankYouConfig.usedCouponCode + "&email=" + thankYouConfig.consumerEmail + "&subtext=XXX";
     injectScript(
       sovendusUrl,
       () => {
@@ -187,7 +192,7 @@ function thankYouPage() {
     setCookie("sovReqProductId", "add", "123");
     const sovReqToken = getCookieValues("sovReqToken")[0];
     const sovReqProductId = getCookieValues("sovReqProductId")[0];
-    const pixelUrl = "https://press-order-api.sovendus.com/ext/" + sovReqProductId + "/image?sovReqToken=" + sovReqToken;
+    const pixelUrl = sovendusDomains.voucherNetwork + "ext/" + sovReqProductId + "/image?sovReqToken=" + sovReqToken;
     sendPixel(
       pixelUrl,
       () => {
@@ -215,7 +220,7 @@ function setCookie(cookieName, setType, cookieValue) {
 }
 function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
   if (thankYouConfig.settings.voucherNetwork.anyCountryEnabled) {
-    const sovendusUrl = "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
+    const sovendusUrl = sovendusDomains.checkoutProducts + "sovabo/common/js/flexibleIframe.js";
     const sovIframes = createQueue("sovIframes");
     sovIframes({
       trafficSourceNumber: makeString(
