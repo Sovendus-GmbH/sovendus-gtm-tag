@@ -6,7 +6,7 @@ const log = require("logToConsole");
 const queryPermission = require("queryPermission");
 const createQueue = require("createQueue");
 const getCookieValues = require("getCookieValues");
-const setCookie = require("setCookie");
+const _setCookie = require("setCookie");
 const sendPixel = require("sendPixel");
 const getUrl = require("getUrl");
 const parseUrl = require("parseUrl");
@@ -39,9 +39,9 @@ const cookieKeys = {
  * Make sure all permissions are checked
  */
 function checkPermissions() {
-    return (queryPermission("set_cookies", cookieKeys.sovReqToken, cookieAddOptions) &&
-        queryPermission("set_cookies", cookieKeys.sovCouponCode, cookieAddOptions) &&
-        queryPermission("set_cookies", cookieKeys.sovReqProductId, cookieAddOptions) &&
+    return (queryPermission("set_cookies", cookieKeys.sovReqToken, getCookieOptions("add")) &&
+        queryPermission("set_cookies", cookieKeys.sovCouponCode, getCookieOptions("add")) &&
+        queryPermission("set_cookies", cookieKeys.sovReqProductId, getCookieOptions("add")) &&
         queryPermission("get_url", "query", cookieKeys.sovReqToken) &&
         queryPermission("get_url", "query", cookieKeys.sovCouponCode) &&
         queryPermission("get_url", "query", cookieKeys.sovReqProductId));
@@ -96,11 +96,6 @@ function setLandingPageInitialStatus() {
     setInWindow("sovPageStatus", sovPageStatus);
     return sovPageStatus;
 }
-const cookieAddOptions = {
-    "path": "/",
-    "max-age": 60 * 60 * 24 * 31,
-    "secure": true,
-};
 function optimizePage(config, sovPageStatus) {
     if (config.settings.optimize.globalId &&
         config.settings.optimize.globalEnabled) {
@@ -116,7 +111,7 @@ function voucherNetworkPage(config, sovPageStatus, urlSearchParams) {
     if (config.settings.voucherNetwork.cookieTracking) {
         const sovCouponCode = urlSearchParams[cookieKeys.sovCouponCode];
         if (sovCouponCode) {
-            setCookie(cookieKeys.sovCouponCode, sovCouponCode, cookieAddOptions);
+            setCookie(cookieKeys.sovCouponCode, "add", sovCouponCode);
             logger("Page", "success sovCouponCode =", sovCouponCode);
             sovPageStatus.loadedVoucherNetworkVoucherCode = true;
         }
@@ -137,8 +132,8 @@ function checkoutProductsPage(config, sovPageStatus, urlSearchParams) {
                 sovPageStatus.missingSovReqTokenOrProductId = true;
             }
             else {
-                setCookie(cookieKeys.sovReqToken, sovReqToken, cookieAddOptions);
-                setCookie(cookieKeys.sovReqProductId, sovReqProductId, cookieAddOptions);
+                setCookie(cookieKeys.sovReqToken, "add", sovReqToken);
+                setCookie(cookieKeys.sovReqProductId, "add", sovReqProductId);
                 logger("Page", "success sovReqToken =", sovReqToken, "sovReqProductId =", sovReqProductId);
                 sovPageStatus.executedCheckoutProducts = true;
             }
@@ -166,16 +161,8 @@ function thankYouPage() {
         sovThankyouStatus.loadedOptimize = true;
     }
     if (data.checkoutProducts) {
-        setCookie("sovReqToken", "test", {
-            "path": "/",
-            "max-age": 60 * 60 * 24 * 31,
-            "secure": true,
-        });
-        setCookie("sovReqProductId", "123", {
-            "path": "/",
-            "max-age": 60 * 60 * 24 * 31,
-            "secure": true,
-        });
+        setCookie("sovReqToken", "add", "test");
+        setCookie("sovReqProductId", "add", "123");
         const sovReqToken = getCookieValues("sovReqToken")[0];
         const sovReqProductId = getCookieValues("sovReqProductId")[0];
         const pixelUrl = "https://press-order-api.sovendus.com/ext/" +
@@ -183,16 +170,8 @@ function thankYouPage() {
             "/image?sovReqToken=" +
             sovReqToken;
         // Remove Checkout Products Cookie
-        // setCookie("sovReqToken", "", {
-        //   path: "/",
-        //   "max-age": 0,
-        //   secure: true,
-        // });
-        // setCookie("sovReqProductId", "", {
-        //   path: "/",
-        //   "max-age": 0,
-        //   secure: true,
-        // });
+        // setSetCookie("sovReqToken", "delete");
+        // setSetCookie("sovReqProductId", "delete");
         // Send Checkout Products pixel
         sendPixel(pixelUrl, () => {
             /* empty */
@@ -202,6 +181,16 @@ function thankYouPage() {
     }
     setInWindow("sovThankyouStatus", sovThankyouStatus);
     logger("Thankyou", "done");
+}
+function getCookieOptions(setType) {
+    return {
+        "path": "/",
+        "max-age": setType === "add" ? 60 * 60 * 24 * 31 : 0,
+        "secure": true,
+    };
+}
+function setCookie(cookieName, setType, cookieValue = "") {
+    _setCookie(cookieName, cookieValue, getCookieOptions(setType));
 }
 function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
     if (data.voucherNetwork || data.checkoutBenefits) {
@@ -261,7 +250,7 @@ function getThankyouPageConfig() {
             version: "2",
         },
         orderId: data.orderId,
-        orderValue: data.orderValue,
+        orderValue: calculateOrderValue(),
         orderCurrency: data.orderCurrency,
         usedCouponCode: data.usedCouponCode,
         iframeContainerId: data.iframeContainerId,
@@ -285,6 +274,11 @@ function getThankyouPageConfig() {
     };
     setInWindow("sovThankyouConfig", sovThankyouConfig);
     return sovThankyouConfig;
+}
+function calculateOrderValue() {
+    return String(data.netOrderValue
+        ? data.grossOrderValue - data.taxValue - data.shippingValue
+        : data.netOrderValue);
 }
 function setThankyouPageInitialStatus() {
     const sovThankyouStatus = {
