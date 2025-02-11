@@ -301,9 +301,16 @@ function getThankyouPageConfig() {
     return sovThankyouConfig;
 }
 function calculateOrderValue() {
-    return String(data.netOrderValue
-        ? data.grossOrderValue - data.taxValue - data.shippingValue
-        : data.netOrderValue);
+    if (data.netOrderValue) {
+        return String(data.netOrderValue);
+    }
+    let grossOrderValue = Number(String(data.grossOrderValue));
+    let taxValue = Number(String(data.taxValue));
+    let shippingValue = Number(String(data.shippingValue));
+    grossOrderValue = isNaN(grossOrderValue) ? 0 : grossOrderValue;
+    taxValue = isNaN(taxValue) ? 0 : taxValue;
+    shippingValue = isNaN(shippingValue) ? 0 : shippingValue;
+    return String(grossOrderValue - taxValue - shippingValue);
 }
 function setThankyouPageInitialStatus() {
     const sovThankyouStatus = {
@@ -317,13 +324,13 @@ function setThankyouPageInitialStatus() {
     return sovThankyouStatus;
 }
 function getStreetAndNumber(streetWithNumber, streetName, streetNumber) {
-    if (typeof streetWithNumber !== "string") {
+    if (!streetWithNumber) {
         return {
             street: String(streetName) || "",
             number: String(streetNumber) || "",
         };
     }
-    const streetInfo = splitStreetAndNumber(streetWithNumber);
+    const streetInfo = splitStreetAndNumber(String(streetWithNumber));
     return {
         street: streetInfo.street,
         number: streetInfo.number,
