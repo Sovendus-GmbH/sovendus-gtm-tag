@@ -42,6 +42,12 @@ function checkPermissions() {
     return (queryPermission("set_cookies", cookieKeys.sovReqToken, getCookieOptions("add")) &&
         queryPermission("set_cookies", cookieKeys.sovCouponCode, getCookieOptions("add")) &&
         queryPermission("set_cookies", cookieKeys.sovReqProductId, getCookieOptions("add")) &&
+        queryPermission("set_cookies", cookieKeys.sovReqToken, getCookieOptions("delete")) &&
+        queryPermission("set_cookies", cookieKeys.sovCouponCode, getCookieOptions("delete")) &&
+        queryPermission("set_cookies", cookieKeys.sovReqProductId, getCookieOptions("delete")) &&
+        queryPermission("get_cookies", cookieKeys.sovReqToken) &&
+        queryPermission("get_cookies", cookieKeys.sovCouponCode) &&
+        queryPermission("get_cookies", cookieKeys.sovReqProductId) &&
         queryPermission("get_url", "query", cookieKeys.sovReqToken) &&
         queryPermission("get_url", "query", cookieKeys.sovCouponCode) &&
         queryPermission("get_url", "query", cookieKeys.sovReqProductId));
