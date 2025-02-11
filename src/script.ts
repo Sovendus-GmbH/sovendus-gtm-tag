@@ -263,7 +263,7 @@ function voucherNetworkPage(
   urlSearchParams: CookieStorageObject,
 ): void {
   if (config.settings.voucherNetwork.cookieTracking) {
-    const sovCouponCode = urlSearchParams[cookieKeys.sovCouponCode];
+    const sovCouponCode: string = urlSearchParams[cookieKeys.sovCouponCode];
     if (sovCouponCode) {
       setCookie(cookieKeys.sovCouponCode, "add", sovCouponCode);
       logger("Page", "success sovCouponCode =", sovCouponCode);
