@@ -95,6 +95,8 @@ const parseUrl = require<
     searchParams: CookieStorageObject;
   }
 >("parseUrl");
+const makeString = require<(value: ExplicitAnyType) => string>("makeString");
+const makeNumber = require<(value: ExplicitAnyType) => number>("makeNumber");
 
 /**
  * Main function
@@ -172,9 +174,9 @@ function checkPermissions(): boolean {
 function logger(
   pageType: "Page" | "Thankyou",
   message: string,
-  ...messages: ExplicitAnyType[]
+  messages?: ExplicitAnyType[],
 ): void {
-  log("Sovendus Tag [" + pageType + "] - " + message, messages);
+  log("Sovendus Tag [" + pageType + "] - " + message, messages || "");
 }
 
 /**
@@ -207,7 +209,9 @@ function getLandingPageConfig(
       },
       optimize: {
         useGlobalId: true,
-        globalId: data.optimizeIdPage ? String(data.optimizeIdPage) : undefined,
+        globalId: data.optimizeIdPage
+          ? makeString(data.optimizeIdPage)
+          : undefined,
         globalEnabled: !!(data.optimizeIdPage && data.optimizeIdPage),
       },
       checkoutProducts: data.checkoutProductsPage || false,
@@ -252,7 +256,7 @@ function optimizePage(
       "use-cache",
     );
 
-    logger("Page", "success optimizeId =", config.settings.optimize.globalId);
+    logger("Page", "success optimizeId =", [config.settings.optimize.globalId]);
     sovPageStatus.loadedOptimize = true;
   }
 }
@@ -266,7 +270,7 @@ function voucherNetworkPage(
     const sovCouponCode = urlSearchParams[cookieKeys.sovCouponCode];
     if (sovCouponCode) {
       setCookie(cookieKeys.sovCouponCode, "add", sovCouponCode);
-      logger("Page", "success sovCouponCode =", sovCouponCode);
+      logger("Page", "success sovCouponCode =", [sovCouponCode]);
       sovPageStatus.loadedVoucherNetworkVoucherCode = true;
     }
     sovPageStatus.loadedVoucherNetworkSwitzerland = true;
@@ -299,10 +303,10 @@ function checkoutProductsPage(
         setCookie(cookieKeys.sovReqProductId, "add", sovReqProductId);
         logger(
           "Page",
-          "success sovReqToken =",
-          sovReqToken,
-          "sovReqProductId =",
-          sovReqProductId,
+          "success sovReqToken =" +
+            sovReqToken +
+            " - sovReqProductId =" +
+            sovReqProductId,
         );
         sovPageStatus.executedCheckoutProducts = true;
       }
@@ -328,9 +332,19 @@ function thankYouPage(): void {
 
   voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus);
 
-  if (data.optimize && data.optimizeId) {
+  if (thankYouConfig.settings.optimize.globalEnabled) {
     const sovendusUrl =
-      "https://www.sovopt.com/${data.optimizeId}/conversion/?ordervalue=${thankYouConfig.ordervalue}&ordernumber=${thankYouConfig.ordernumber}&vouchercode=${thankYouConfig.vouchercode}&email=${thankYouConfig.email}&subtext=XXX";
+      "https://www.sovopt.com/" +
+      thankYouConfig.settings.optimize.globalId +
+      "/conversion/?ordervalue=" +
+      thankYouConfig.orderValue +
+      "&ordernumber=" +
+      thankYouConfig.orderId +
+      "&vouchercode=" +
+      thankYouConfig.usedCouponCode +
+      "&email=" +
+      thankYouConfig.consumerEmail +
+      "&subtext=XXX";
     injectScript(
       sovendusUrl,
       () => {
@@ -339,11 +353,13 @@ function thankYouPage(): void {
       data.gtmOnFailure,
       "use-cache",
     );
-
+    logger("Thankyou", "success optimizeId =", [
+      thankYouConfig.settings.optimize.globalId,
+    ]);
     sovThankyouStatus.loadedOptimize = true;
   }
 
-  if (data.checkoutProducts) {
+  if (thankYouConfig.settings.checkoutProducts) {
     setCookie("sovReqToken", "add", "test");
     setCookie("sovReqProductId", "add", "123");
 
@@ -369,10 +385,10 @@ function thankYouPage(): void {
     );
     logger(
       "Thankyou",
-      "success sovReqToken =",
-      sovReqToken,
-      "sovReqProductId =",
-      sovReqProductId,
+      "success sovReqToken =" +
+        sovReqToken +
+        " - sovReqProductId =" +
+        sovReqProductId,
     );
     sovThankyouStatus.executedCheckoutProducts = true;
   }
@@ -392,7 +408,7 @@ function getCookieOptions(setType: "add" | "delete"): CookieSetOptions {
 function setCookie(
   cookieName: string,
   setType: "add" | "delete",
-  cookieValue: string = "",
+  cookieValue?: string,
 ): void {
   _setCookie(cookieName, cookieValue, getCookieOptions(setType));
 }
@@ -401,17 +417,7 @@ function voucherNetworkThankYouPage(
   thankYouConfig: SovendusThankYouPageConfig,
   sovThankyouStatus: SovendusThankYouPageStatus,
 ): void {
-  if (data.voucherNetwork || data.checkoutBenefits) {
-    if (
-      isNaN(Number(data.trafficMediumNumber)) ||
-      isNaN(Number(data.trafficSourceNumber))
-    ) {
-      logger(
-        "Thankyou",
-        "trafficMediumNumber or trafficSourceNumber is missing or not a number",
-      );
-      return;
-    }
+  if (thankYouConfig.settings.voucherNetwork.anyCountryEnabled) {
     const sovendusUrl =
       "https://api.sovendus.com/sovabo/common/js/flexibleIframe.js";
 
@@ -419,8 +425,12 @@ function voucherNetworkThankYouPage(
 
     //Allocate Main- & Orderdata
     sovIframes({
-      trafficSourceNumber: String(data.trafficSourceNumber),
-      trafficMediumNumber: String(data.trafficMediumNumber),
+      trafficSourceNumber: makeString(
+        thankYouConfig.settings.voucherNetwork.simple!.trafficSourceNumber,
+      ),
+      trafficMediumNumber: makeString(
+        thankYouConfig.settings.voucherNetwork.simple!.trafficMediumNumber,
+      ),
       orderId: thankYouConfig.orderId,
       orderValue: thankYouConfig.orderValue,
       orderCurrency: thankYouConfig.orderCurrency,
@@ -470,72 +480,98 @@ function getThankyouPageConfig(): SovendusThankYouPageConfig {
   const sovThankyouConfig: SovendusThankYouPageConfig = {
     settings: {
       voucherNetwork: {
-        anyCountryEnabled: false,
+        anyCountryEnabled: !!(
+          data.trafficSourceNumber && data.trafficMediumNumber
+        ),
+        simple: {
+          trafficSourceNumber: makeString(data.trafficSourceNumber),
+          trafficMediumNumber: makeString(data.trafficMediumNumber),
+        },
+        iframeContainerId: makeString(data.iframeContainerId),
       },
       optimize: {
-        useGlobalId: false,
-        globalId: undefined,
-        globalEnabled: false,
+        useGlobalId: true,
+        globalId: data.optimizeId ? makeString(data.optimizeId) : undefined,
+        globalEnabled: data.optimizeId ? true : false,
       },
-      checkoutProducts: false,
+      checkoutProducts: data.checkoutProducts || false,
       version: "2" as Versions.TWO,
     },
-    orderId: String(data.orderId),
-    orderValue: calculateOrderValue(),
-    orderCurrency: data.orderCurrency ? String(data.orderCurrency) : undefined,
-    usedCouponCode: data.usedCouponCode
-      ? String(data.usedCouponCode)
+    orderId: makeString(data.orderId),
+    orderValue: calculateOrderValue(
+      data.netOrderValue,
+      data.grossOrderValue,
+      data.taxValue,
+      data.shippingValue,
+    ),
+    orderCurrency: data.orderCurrency
+      ? makeString(data.orderCurrency)
       : undefined,
-    iframeContainerId: String(data.iframeContainerId),
+    usedCouponCode: data.usedCouponCode
+      ? makeString(data.usedCouponCode)
+      : undefined,
+    iframeContainerId: makeString(data.iframeContainerId),
     integrationType: PLUGIN_VERSION,
     consumerSalutation: (data.consumerSalutation
-      ? String(data.consumerSalutation)
+      ? makeString(data.consumerSalutation)
       : undefined) as "Mr." | "Mrs." | undefined,
     consumerFirstName: data.consumerFirstName
-      ? String(data.consumerFirstName)
+      ? makeString(data.consumerFirstName)
       : undefined,
     consumerLastName: data.consumerLastName
-      ? String(data.consumerLastName)
+      ? makeString(data.consumerLastName)
       : undefined,
-    consumerEmail: data.consumerEmail ? String(data.consumerEmail) : undefined,
+    consumerEmail: data.consumerEmail
+      ? makeString(data.consumerEmail)
+      : undefined,
     consumerEmailHash: data.consumerEmailHash
-      ? String(data.consumerEmailHash)
+      ? makeString(data.consumerEmailHash)
       : undefined,
     consumerYearOfBirth: data.consumerYearOfBirth
-      ? String(data.consumerYearOfBirth)
+      ? makeString(data.consumerYearOfBirth)
       : undefined,
     consumerDateOfBirth: data.consumerDateOfBirth
-      ? String(data.consumerDateOfBirth)
+      ? makeString(data.consumerDateOfBirth)
       : undefined,
     consumerStreet: streetInfo.street,
     consumerStreetNumber: streetInfo.number,
     consumerZipcode: data.consumerZipcode
-      ? String(data.consumerZipcode)
+      ? makeString(data.consumerZipcode)
       : undefined,
-    consumerCity: data.consumerCity ? String(data.consumerCity) : undefined,
+    consumerCity: data.consumerCity ? makeString(data.consumerCity) : undefined,
     consumerCountry: data.consumerCountry
-      ? String(data.consumerCountry)
+      ? makeString(data.consumerCountry)
       : undefined,
-    consumerPhone: data.consumerPhone ? String(data.consumerPhone) : undefined,
+    consumerPhone: data.consumerPhone
+      ? makeString(data.consumerPhone)
+      : undefined,
     usedCouponCodes: undefined,
     sessionId: undefined,
     timestamp: undefined,
   };
   setInWindow("sovThankyouConfig", sovThankyouConfig);
+  // TODO: remove
+  logger("Thankyou", "sovThankyouConfig =", [sovThankyouConfig]);
+  logger("Thankyou", "data =", [data]);
   return sovThankyouConfig;
 }
 
-function calculateOrderValue(): string {
-  if (data.netOrderValue) {
-    return String(data.netOrderValue);
+function calculateOrderValue(
+  netOrderValue: ExplicitAnyType,
+  grossOrderValue: ExplicitAnyType,
+  taxValue: ExplicitAnyType,
+  shippingValue: ExplicitAnyType,
+): string {
+  if (netOrderValue) {
+    return makeString(netOrderValue);
   }
-  let grossOrderValue = Number(String(data.grossOrderValue));
-  let taxValue = Number(String(data.taxValue));
-  let shippingValue = Number(String(data.shippingValue));
-  grossOrderValue = isNaN(grossOrderValue) ? 0 : grossOrderValue;
-  taxValue = isNaN(taxValue) ? 0 : taxValue;
-  shippingValue = isNaN(shippingValue) ? 0 : shippingValue;
-  return String(grossOrderValue - taxValue - shippingValue);
+  let _grossOrderValue = makeNumber(makeString(grossOrderValue));
+  let _taxValue = makeNumber(makeString(taxValue));
+  let _shippingValue = makeNumber(makeString(shippingValue));
+  _grossOrderValue = _grossOrderValue ? _grossOrderValue : 0;
+  _taxValue = _taxValue ? _taxValue : 0;
+  _shippingValue = _shippingValue ? _shippingValue : 0;
+  return makeString(_grossOrderValue - _taxValue - _shippingValue);
 }
 
 function setThankyouPageInitialStatus(): SovendusThankYouPageStatus {
@@ -560,11 +596,11 @@ function getStreetAndNumber(
 } {
   if (!streetWithNumber) {
     return {
-      street: String(streetName) || "",
-      number: String(streetNumber) || "",
+      street: makeString(streetName) || "",
+      number: makeString(streetNumber) || "",
     };
   }
-  const streetInfo = splitStreetAndNumber(String(streetWithNumber));
+  const streetInfo = splitStreetAndNumber(makeString(streetWithNumber));
   return {
     street: streetInfo.street,
     number: streetInfo.number,
