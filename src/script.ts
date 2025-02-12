@@ -96,7 +96,13 @@ const parseUrl = require<
     searchParams: CookieStorageObject;
   }
 >("parseUrl");
-const makeString = require<(value: ExplicitAnyType) => string>("makeString");
+const _makeString = require<(value: ExplicitAnyType) => string>("makeString");
+
+function makeString(value: ExplicitAnyType): string | undefined {
+  const stringValue = _makeString(value);
+  return stringValue === "undefined" ? Undefined : stringValue;
+}
+
 const makeNumber = require<(value: ExplicitAnyType) => number>("makeNumber");
 const Undefined = null as unknown as undefined;
 
@@ -452,9 +458,7 @@ function voucherNetworkThankYouPage(
   if (thankYouConfig.settings.voucherNetwork.anyCountryEnabled) {
     const sovendusUrl =
       sovendusDomains.sovendusApi + "sovabo/common/js/flexibleIframe.js";
-
     const sovIframes = createQueue("sovIframes");
-
     //Allocate Main- & Orderdata
     sovIframes({
       trafficSourceNumber: makeString(
@@ -510,6 +514,8 @@ function getThankyouPageConfig(): SovendusThankYouPageConfig {
     data.consumerStreetNumber,
   );
 
+  const usedCouponCookie = getCookieValues(cookieKeys.sovCouponCode)[0];
+
   const sovThankyouConfig: SovendusThankYouPageConfig = {
     settings: {
       voucherNetwork: {
@@ -540,9 +546,10 @@ function getThankyouPageConfig(): SovendusThankYouPageConfig {
     orderCurrency: data.orderCurrency
       ? makeString(data.orderCurrency)
       : Undefined,
-    usedCouponCode: data.usedCouponCode
-      ? makeString(data.usedCouponCode)
-      : Undefined,
+    usedCouponCode:
+      makeString(usedCouponCookie) ||
+      makeString(data.usedCouponCode) ||
+      Undefined,
     iframeContainerId: makeString(data.iframeContainerId),
     integrationType: PLUGIN_VERSION,
     consumerSalutation: (data.consumerSalutation

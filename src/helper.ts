@@ -1,14 +1,20 @@
 import type { ExplicitAnyType } from "sovendus-integration-types";
 
 export function getStreetAndNumber(
-  makeString: (value: ExplicitAnyType) => string,
+  makeString: (value: ExplicitAnyType) => string | undefined,
   streetWithNumber: ExplicitAnyType,
   streetName: ExplicitAnyType,
   streetNumber: ExplicitAnyType,
 ): {
-  street: string;
-  number: string;
+  street: string | undefined;
+  number: string | undefined;
 } {
+  if (!streetName && !streetNumber && !streetWithNumber) {
+    return {
+      street: "",
+      number: "",
+    };
+  }
   if (!streetWithNumber) {
     return {
       street: makeString(streetName) || "",
@@ -17,18 +23,18 @@ export function getStreetAndNumber(
   }
   const streetInfo = splitStreetAndNumber(makeString(streetWithNumber));
   return {
-    street: streetInfo.street,
+    street: streetInfo.streetName,
     number: streetInfo.number,
   };
 }
 
-function splitStreetAndNumber(street: string): {
-  street: string;
-  number: string;
+function splitStreetAndNumber(street: string | undefined): {
+  streetName: string | undefined;
+  number: string | undefined;
 } {
   // Check if the input is valid (must be a non-empty string)
   if (typeof street !== "string" || street.trim().length === 0) {
-    return { street: street, number: "" };
+    return { streetName: street, number: "" };
   }
   // Trim leading and trailing spaces from the street string
   const trimmedStreet = street.trim();
@@ -36,7 +42,7 @@ function splitStreetAndNumber(street: string): {
   const lastSpaceIndex = trimmedStreet.lastIndexOf(" ");
   // If no space is found, there is no house number
   if (lastSpaceIndex === -1) {
-    return { street: trimmedStreet, number: "" };
+    return { streetName: trimmedStreet, number: "" };
   }
   // Extract the potential house number (everything after the last space)
   const potentialNumber = trimmedStreet.slice(lastSpaceIndex + 1);
@@ -44,12 +50,12 @@ function splitStreetAndNumber(street: string): {
   if (isValidHouseNumber(potentialNumber)) {
     // If valid, return the street (everything before the last space) and the house number
     return {
-      street: trimmedStreet.slice(0, lastSpaceIndex),
+      streetName: trimmedStreet.slice(0, lastSpaceIndex),
       number: potentialNumber,
     };
   }
   // If the house number is invalid, return the entire string as the street
-  return { street: trimmedStreet, number: "" };
+  return { streetName: trimmedStreet, number: "" };
 }
 
 // Helper function to check if a string is a valid house number

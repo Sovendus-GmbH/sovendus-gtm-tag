@@ -1,4 +1,10 @@
 function getStreetAndNumber(makeString, streetWithNumber, streetName, streetNumber) {
+  if (!streetName && !streetNumber && !streetWithNumber) {
+    return {
+      street: "",
+      number: ""
+    };
+  }
   if (!streetWithNumber) {
     return {
       street: makeString(streetName) || "",
@@ -7,27 +13,27 @@ function getStreetAndNumber(makeString, streetWithNumber, streetName, streetNumb
   }
   const streetInfo = splitStreetAndNumber(makeString(streetWithNumber));
   return {
-    street: streetInfo.street,
+    street: streetInfo.streetName,
     number: streetInfo.number
   };
 }
 function splitStreetAndNumber(street) {
   if (typeof street !== "string" || street.trim().length === 0) {
-    return { street, number: "" };
+    return { streetName: street, number: "" };
   }
   const trimmedStreet = street.trim();
   const lastSpaceIndex = trimmedStreet.lastIndexOf(" ");
   if (lastSpaceIndex === -1) {
-    return { street: trimmedStreet, number: "" };
+    return { streetName: trimmedStreet, number: "" };
   }
   const potentialNumber = trimmedStreet.slice(lastSpaceIndex + 1);
   if (isValidHouseNumber(potentialNumber)) {
     return {
-      street: trimmedStreet.slice(0, lastSpaceIndex),
+      streetName: trimmedStreet.slice(0, lastSpaceIndex),
       number: potentialNumber
     };
   }
-  return { street: trimmedStreet, number: "" };
+  return { streetName: trimmedStreet, number: "" };
 }
 function isValidHouseNumber(str) {
   if (str.length === 0) {
@@ -54,7 +60,11 @@ const _setCookie = require("setCookie");
 const sendPixel = require("sendPixel");
 const getUrl = require("getUrl");
 const parseUrl = require("parseUrl");
-const makeString = require("makeString");
+const _makeString = require("makeString");
+function makeString(value) {
+  const stringValue = _makeString(value);
+  return stringValue === "undefined" ? Undefined : stringValue;
+}
 const makeNumber = require("makeNumber");
 const Undefined = null;
 const sovendusDomains = {
@@ -283,6 +293,9 @@ function voucherNetworkThankYouPage(thankYouConfig, sovThankyouStatus) {
   if (thankYouConfig.settings.voucherNetwork.anyCountryEnabled) {
     const sovendusUrl = sovendusDomains.sovendusApi + "sovabo/common/js/flexibleIframe.js";
     const sovIframes = createQueue("sovIframes");
+    log("Thankyou", "usedCouponCode: thankYouConfig.usedCouponCode =", [
+      thankYouConfig.usedCouponCode
+    ]);
     sovIframes({
       trafficSourceNumber: makeString(
         thankYouConfig.settings.voucherNetwork.simple.trafficSourceNumber
@@ -330,6 +343,8 @@ function getThankyouPageConfig() {
     data.consumerStreet,
     data.consumerStreetNumber
   );
+  const usedCouponCookie = getCookieValues(cookieKeys.sovCouponCode)[0];
+  log("getThankyouPageConfig Debug", "usedCouponCookie", [usedCouponCookie]);
   const sovThankyouConfig = {
     settings: {
       voucherNetwork: {
@@ -356,7 +371,7 @@ function getThankyouPageConfig() {
       data.shippingValue
     ),
     orderCurrency: data.orderCurrency ? makeString(data.orderCurrency) : Undefined,
-    usedCouponCode: data.usedCouponCode ? makeString(data.usedCouponCode) : Undefined,
+    usedCouponCode: makeString(usedCouponCookie) || makeString(data.usedCouponCode) || Undefined,
     iframeContainerId: makeString(data.iframeContainerId),
     integrationType: PLUGIN_VERSION,
     consumerSalutation: data.consumerSalutation ? makeString(data.consumerSalutation) : Undefined,
@@ -376,6 +391,7 @@ function getThankyouPageConfig() {
     sessionId: Undefined,
     timestamp: Undefined
   };
+  log("getThankyouPageConfig Debug", "sovThankyouConfig", [sovThankyouConfig]);
   setInWindow("sovThankyouConfig", sovThankyouConfig);
   return sovThankyouConfig;
 }
