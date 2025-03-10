@@ -1,12 +1,12 @@
 // only import types - no external code
 import type {
   ExplicitAnyType,
-  InterfaceDataElementKeyType,
-  SovConsumerType,
-  SovConversionsType,
+  PublicThankYouCookieData,
+  SovendusConsumerType,
   SovendusPageConfig,
   SovendusThankYouPageConfig,
   SovendusThankYouPageStatus,
+  SovendusVNConversionsType,
   SovPageStatus,
   Versions,
 } from "sovendus-integration-types";
@@ -135,9 +135,8 @@ function main(): void {
 const cookieKeys = {
   sovCouponCode: "sovCouponCode",
   sovReqToken: "sovReqToken",
-  sovReqProductId: "sovReqProductId",
 } satisfies {
-  [key in InterfaceDataElementKeyType]?: InterfaceDataElementKeyType;
+  [key in keyof PublicThankYouCookieData]?: string;
 };
 
 /**
@@ -158,11 +157,6 @@ export function checkPermissions(): boolean {
     ) &&
     queryPermission(
       "set_cookies",
-      cookieKeys.sovReqProductId,
-      getCookieOptions("add"),
-    ) &&
-    queryPermission(
-      "set_cookies",
       cookieKeys.sovReqToken,
       getCookieOptions("delete"),
     ) &&
@@ -171,17 +165,10 @@ export function checkPermissions(): boolean {
       cookieKeys.sovCouponCode,
       getCookieOptions("delete"),
     ) &&
-    queryPermission(
-      "set_cookies",
-      cookieKeys.sovReqProductId,
-      getCookieOptions("delete"),
-    ) &&
     queryPermission("get_cookies", cookieKeys.sovReqToken) &&
     queryPermission("get_cookies", cookieKeys.sovCouponCode) &&
-    queryPermission("get_cookies", cookieKeys.sovReqProductId) &&
     queryPermission("get_url", "query", cookieKeys.sovReqToken) &&
     queryPermission("get_url", "query", cookieKeys.sovCouponCode) &&
-    queryPermission("get_url", "query", cookieKeys.sovReqProductId) &&
     queryPermission("inject_script", sovendusDomains.optimize) &&
     queryPermission("inject_script", sovendusDomains.sovendusApi) &&
     queryPermission("send_pixel", sovendusDomains.checkoutProducts)
@@ -312,21 +299,13 @@ function checkoutProductsPage(
 ): void {
   if (config.settings.checkoutProducts) {
     const sovReqToken = urlSearchParams[cookieKeys.sovReqToken];
-    const sovReqProductId = urlSearchParams[cookieKeys.sovReqProductId];
-    if (sovReqToken || sovReqProductId) {
-      if (!sovReqToken || !sovReqProductId) {
-        logger("Page", "sovReqToken or sovReqProductId is missing in url");
+    if (sovReqToken) {
+      if (!sovReqToken) {
+        logger("Page", "sovReqToken is missing in url");
         sovPageStatus.missingSovReqTokenOrProductId = true;
       } else {
         setCookie(cookieKeys.sovReqToken, "add", sovReqToken);
-        setCookie(cookieKeys.sovReqProductId, "add", sovReqProductId);
-        logger(
-          "Page",
-          "success sovReqToken =" +
-            sovReqToken +
-            " - sovReqProductId =" +
-            sovReqProductId,
-        );
+        logger("Page", "success sovReqToken =" + sovReqToken);
         sovPageStatus.executedCheckoutProducts = true;
       }
     }
@@ -366,20 +345,11 @@ function checkoutProductsThankYouPage(
     if (!sovReqToken) {
       return;
     }
-    const sovReqProductId = getCookieValues("sovReqProductId")[0];
-    if (!sovReqProductId) {
-      logger("Thankyou", "sovReqProductId is missing in cookie");
-      return;
-    }
     const pixelUrl =
-      sovendusDomains.checkoutProducts +
-      sovReqProductId +
-      "/image?sovReqToken=" +
-      sovReqToken;
+      sovendusDomains.checkoutProducts + "image?sovReqToken=" + sovReqToken;
 
     // Remove Checkout Products Cookie
     setCookie("sovReqToken", "delete");
-    setCookie("sovReqProductId", "delete");
 
     sendPixel(
       pixelUrl,
@@ -390,13 +360,7 @@ function checkoutProductsThankYouPage(
         /* empty */
       },
     );
-    logger(
-      "Thankyou",
-      "success sovReqToken =" +
-        sovReqToken +
-        " - sovReqProductId =" +
-        sovReqProductId,
-    );
+    logger("Thankyou", "success sovReqToken =" + sovReqToken);
     sovThankyouStatus.executedCheckoutProducts = true;
   }
 }
@@ -474,7 +438,7 @@ function voucherNetworkThankYouPage(
       iframeContainerId:
         thankYouConfig.settings.voucherNetwork.iframeContainerId!,
       integrationType: PLUGIN_VERSION,
-    } satisfies SovConversionsType);
+    } satisfies SovendusVNConversionsType);
 
     setInWindow("sovConsumer", {
       consumerSalutation: thankYouConfig.consumerSalutation,
@@ -489,7 +453,7 @@ function voucherNetworkThankYouPage(
       consumerCity: thankYouConfig.consumerCity,
       consumerPhone: thankYouConfig.consumerPhone,
       consumerYearOfBirth: thankYouConfig.consumerYearOfBirth,
-    } satisfies SovConsumerType);
+    } satisfies SovendusConsumerType);
 
     injectScript(
       sovendusUrl,
